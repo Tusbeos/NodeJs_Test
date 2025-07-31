@@ -18,6 +18,9 @@ module.exports = {
       image: {
         type: Sequelize.INTEGER,
       },
+      files: {
+        type: Sequelize.TEXT,
+      },
     });
   },
   async down(queryInterface, Sequelize) {

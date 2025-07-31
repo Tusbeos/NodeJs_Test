@@ -9,14 +9,21 @@ module.exports = {
         primaryKey: true,
         type: Sequelize.INTEGER,
       },
-      patienId: {
-        type: Sequelize.INTEGER,
+      // name: DataTypes.STRING,
+      // address: DataTypes.STRING,
+      // description: DataTypes.TEXT,
+      // image: DataTypes.STRING,
+      name: {
+        type: Sequelize.STRING,
       },
-      docterId: {
-        type: Sequelize.INTEGER,
+      address: {
+        type: Sequelize.STRING,
       },
       description: {
         type: Sequelize.TEXT,
+      },
+      image: {
+        type: Sequelize.STRING,
       },
     });
   },
