@@ -18,16 +18,22 @@ let getAbout = async (req, res) => {
 
 let getCURD = async (req, res) => {
   return res.render("crud.ejs");
-  // return res.send("Hello from CURD page! This is a test response.");
 };
 let postCRUD = async (req, res) => {
+  console.log(req.body);
   let message = await CRUDScrvice.createNewUser(req.body);
   console.log(message);
   return res.send("Post CRUD successfully!");
+};
+let getDisplayCRUD = async (req, res) => {
+  let data = await CRUDScrvice.getAllUser();
+  console.log("Check data: ", data);
+  return res.render("displayCRUD.ejs", { dataTable: data });
 };
 module.exports = {
   getHomePage: getHomePage,
   getAbout: getAbout,
   getCURD: getCURD,
   postCRUD: postCRUD,
+  getDisplayCRUD: getDisplayCRUD,
 };
