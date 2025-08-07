@@ -30,10 +30,16 @@ let getDisplayCRUD = async (req, res) => {
   console.log("Check data: ", data);
   return res.render("displayCRUD.ejs", { dataTable: data });
 };
+
+let getEditCRUD = async (req, res) => {
+  console.log(req.query.id);
+  return res.send("Edit CRUD page for id: " + req.query.id);
+};
 module.exports = {
   getHomePage: getHomePage,
   getAbout: getAbout,
   getCURD: getCURD,
   postCRUD: postCRUD,
   getDisplayCRUD: getDisplayCRUD,
+  getEditCRUD: getEditCRUD,
 };
