@@ -37,6 +37,7 @@
         <th>Firstname</th>
         <th>Lastname</th>
         <th>Address</th>
+        <th>Action</th>
       </tr>
 
       <% for(let i=0; i < dataTable.length; i++) { %>
@@ -52,8 +53,13 @@
             type="button"
             >Edit</a
           >
+          <a
+            href="/delete-crud?id=<%= dataTable[i].id %>"
+            class="btn-delete"
+            type="button"
+            >Delete</a
+          >
         </td>
-        <td><a class="btn-delete" type="button">Delete</a></td>
       </tr>
       <% } %>
     </table>
