@@ -1,5 +1,6 @@
+const e = require("express");
 const db = require("../models/index");
-const CRUDScrvice = require("../service/CRUDService");
+const CRUDService = require("../service/CRUDService");
 
 let getHomePage = async (req, res) => {
   try {
@@ -21,19 +22,31 @@ let getCURD = async (req, res) => {
 };
 let postCRUD = async (req, res) => {
   console.log(req.body);
-  let message = await CRUDScrvice.createNewUser(req.body);
+  let message = await CRUDService.createNewUser(req.body);
   console.log(message);
   return res.send("Post CRUD successfully!");
 };
 let getDisplayCRUD = async (req, res) => {
-  let data = await CRUDScrvice.getAllUser();
+  let data = await CRUDService.getAllUser();
   console.log("Check data: ", data);
   return res.render("displayCRUD.ejs", { dataTable: data });
 };
 
 let getEditCRUD = async (req, res) => {
-  console.log(req.query.id);
-  return res.send("Edit CRUD page for id: " + req.query.id);
+  let UserId = req.query.id;
+  console.log(UserId);
+  if (UserId) {
+    let userData = await CRUDService.getUserInfoById(UserId);
+    return res.render("edit-crud.ejs", { user: userData });
+  } else {
+    return res.send("User not found!");
+  }
+};
+
+let putCRUD = async (req, res) => {
+  let data = req.body;
+  let allUser = await CRUDService.updateUserData(data);
+  return res.render("displayCRUD.ejs", { dataTable: allUser });
 };
 module.exports = {
   getHomePage: getHomePage,
@@ -42,4 +55,5 @@ module.exports = {
   postCRUD: postCRUD,
   getDisplayCRUD: getDisplayCRUD,
   getEditCRUD: getEditCRUD,
+  putCRUD: putCRUD,
 };
