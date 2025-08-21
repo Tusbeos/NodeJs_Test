@@ -1,5 +1,6 @@
 import express from "express";
 import homeController from "../controller/homeController.js";
+import userController from "../controller/userController.js";
 
 const router = express.Router();
 
@@ -14,6 +15,8 @@ const initWebRouter = (app) => {
 
   router.post("/put-crud", homeController.putCRUD);
   router.get("/delete-crud", homeController.deleteCRUD);
+
+  router.post("/api/login", userController.handleLogin);
   app.use("/", router);
 };
 
