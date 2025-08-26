@@ -1,9 +1,10 @@
 {
   "development": {
-    "username": "root",
-    "password": "",
-    "database": "js_db_test",
+    "username": "app",
+    "password": "apppass",
+    "database": "js_db",
     "host": "127.0.0.1",
+    "port": 3307,
     "dialect": "mysql",
     "logging": false
   },

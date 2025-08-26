@@ -1,4 +1,3 @@
-import { raw } from "body-parser";
 import db from "../models/index.js";
 import bcrypt from "bcryptjs";
 
@@ -23,13 +22,13 @@ let handleUserLogin = (email, password) => {
             userData.message = "Ok";
 
             delete user.password;
-            userData.user = user; // return user info without password
+            userData.user = user;
           } else {
             userData.errCode = 3;
             userData.message = "Wrong password!";
           }
         } else {
-          userData.errCode = 1;
+          userData.errCode = 2;
           userData.message = "User not found";
         }
       } else {
@@ -43,15 +42,6 @@ let handleUserLogin = (email, password) => {
     }
   });
 };
-
-// let comparePassword = (inputPassword, storedPassword) => {
-//   return new Promise((resolve, reject) => {
-//     try {
-//     } catch (error) {
-//       reject(error);
-//     }
-//   });
-// };
 
 let checkUserEmail = (email) => {
   return new Promise(async (resolve, reject) => {
@@ -67,5 +57,4 @@ let checkUserEmail = (email) => {
 
 module.exports = {
   handleUserLogin,
-  checkUserEmail,
 };
