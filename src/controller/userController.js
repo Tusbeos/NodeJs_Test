@@ -1,6 +1,6 @@
 const userService = require("../service/userService.js");
 
-const handleLogin = async (req, res) => {
+let handleLogin = async (req, res) => {
   let email = req.body.email;
   let password = req.body.password;
 
