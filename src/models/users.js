@@ -2,15 +2,7 @@
 const { Model } = require("sequelize");
 module.exports = (sequelize, DataTypes) => {
   class User extends Model {
-    /**
-     * Helper method for defining associations.
-     * This method is not a part of Sequelize lifecycle.
-     * The `models/index` file will call this method automatically.
-     */
-    //associate Đinh danh các mối quan hệ của model
-    static associate(models) {
-      // define association here
-    }
+    static associate(models) {}
   }
   User.init(
     {
@@ -22,12 +14,14 @@ module.exports = (sequelize, DataTypes) => {
       phoneNumber: DataTypes.TEXT,
       gender: DataTypes.BOOLEAN,
       image: DataTypes.STRING,
-      RoleId: DataTypes.STRING,
+      roleId: DataTypes.STRING,
       positionId: DataTypes.STRING,
     },
     {
       sequelize,
       modelName: "User",
+      tableName: "users",
+      freezeTableName: true,
     }
   );
   return User;
