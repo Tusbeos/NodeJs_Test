@@ -9,24 +9,14 @@ module.exports = {
         primaryKey: true,
         type: Sequelize.INTEGER,
       },
-      statusId: {
-        type: Sequelize.STRING,
-      },
-      docterId: {
-        type: Sequelize.INTEGER,
-      },
-      patienId: {
-        type: Sequelize.INTEGER,
-      },
-      date: {
-        type: Sequelize.DATE,
-      },
-      timeType: {
-        type: Sequelize.STRING,
-      },
+      statusId: { type: Sequelize.STRING },
+      doctorId: { type: Sequelize.INTEGER }, // fixed
+      patientId: { type: Sequelize.INTEGER }, // fixed
+      date: { type: Sequelize.DATE },
+      timeType: { type: Sequelize.STRING },
     });
   },
-  async down(queryInterface, Sequelize) {
+  async down(queryInterface) {
     await queryInterface.dropTable("bookings");
   },
 };
