@@ -2,25 +2,20 @@
 const { Model } = require("sequelize");
 module.exports = (sequelize, DataTypes) => {
   class Docter_Clinic_Specialty extends Model {
-    /**
-     * Helper method for defining associations.
-     * This method is not a part of Sequelize lifecycle.
-     * The `models/index` file will call this method automatically.
-     */
-    //associate Đinh danh các mối quan hệ của model
-    static associate(models) {
-      // define association here
-    }
+    static associate(models) {}
   }
   Docter_Clinic_Specialty.init(
     {
-      docterId: DataTypes.INTEGER,
+      doctorId: DataTypes.INTEGER,
       clinicId: DataTypes.INTEGER,
-      spcialtyId: DataTypes.INTEGER,
+      specialtyId: DataTypes.INTEGER,
     },
     {
       sequelize,
       modelName: "Docter_Clinic_Specialty",
+      tableName: "docter_clinic_specialty", // giữ nguyên như migration
+      freezeTableName: true,
+      timestamps: false,
     }
   );
   return Docter_Clinic_Specialty;

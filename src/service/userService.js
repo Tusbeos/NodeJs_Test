@@ -1,3 +1,4 @@
+import { where } from "sequelize";
 import db from "../models/index.js";
 import bcrypt from "bcryptjs";
 
@@ -82,24 +83,25 @@ let createNewUser = (data) => {
       if (check === true) {
         resolve({
           errCode: 1,
-          message: "Your email is already in used, please try another email",
+          errMessage: "Your email is already in used, please try another email",
+        });
+      } else {
+        let hashPasswordFromBcrypt = await hashUserPassword(data.password);
+        await db.User.create({
+          email: data.email,
+          password: hashPasswordFromBcrypt,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          address: data.address,
+          phoneNumber: data.phoneNumber,
+          gender: data.gender === "1" ? true : false,
+          roleId: data.roleId,
+        });
+        resolve({
+          errCode: 0,
+          message: "Create new user succeed!",
         });
       }
-      let hashPasswordFromBcrypt = await hashUserPassword(data.password);
-      await db.User.create({
-        email: data.email,
-        password: hashPasswordFromBcrypt,
-        firstName: data.firstName,
-        lastName: data.lastName,
-        address: data.address,
-        phoneNumber: data.phoneNumber,
-        gender: data.gender === "1" ? true : false,
-        roleId: data.roleId,
-      });
-      resolve({
-        errCode: 0,
-        message: "Create new user succeed!",
-      });
     } catch (e) {
       reject(e);
     }
@@ -148,11 +150,6 @@ let updateUserData = (data) => {
         user.lastName = data.lastName;
         user.address = data.address;
         await user.save();
-        // await db.User.save({
-        //   firstName: data.firstName,
-        //   lastName: data.lastName,
-        //   address: data.address,
-        // });
         resolve({
           errCode: 0,
           message: "Update the user succeed!",
@@ -179,6 +176,26 @@ let hashUserPassword = (password) => {
     }
   });
 };
+let getAllCodeService = (typeInput) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      if (!typeInput) {
+        resolve({
+          errCode: 1,
+          errMessage: "Missing required parameter",
+        });
+      } else {
+        let result = {};
+        let allcode = await db.Allcode.findAll({ where: { type: typeInput } });
+        result.errCode = 0;
+        result.data = allcode;
+        resolve(result);
+      }
+    } catch (e) {
+      reject(e);
+    }
+  });
+};
 
 module.exports = {
   handleUserLogin,
@@ -186,4 +203,5 @@ module.exports = {
   createNewUser,
   deleteUser,
   updateUserData,
+  getAllCodeService,
 };

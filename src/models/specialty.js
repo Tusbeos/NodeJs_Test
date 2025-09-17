@@ -2,25 +2,20 @@
 const { Model } = require("sequelize");
 module.exports = (sequelize, DataTypes) => {
   class Specialty extends Model {
-    /**
-     * Helper method for defining associations.
-     * This method is not a part of Sequelize lifecycle.
-     * The `models/index` file will call this method automatically.
-     */
-    //associate Đinh danh các mối quan hệ của model
-    static associate(models) {
-      // define association here
-    }
+    static associate(models) {}
   }
   Specialty.init(
     {
       name: DataTypes.STRING,
+      image: DataTypes.STRING, // nếu migration còn "imgage", đổi lại cho khớp
       description: DataTypes.TEXT,
-      image: DataTypes.STRING,
     },
     {
       sequelize,
       modelName: "Specialty",
+      tableName: "specialties", // nếu chưa sửa migration, dùng "spacialtys"
+      freezeTableName: true,
+      timestamps: false, // migration không có createdAt/updatedAt
     }
   );
   return Specialty;
