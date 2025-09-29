@@ -15,7 +15,7 @@ module.exports = {
       lastName: { type: Sequelize.STRING },
       address: { type: Sequelize.STRING },
       phoneNumber: { type: Sequelize.TEXT },
-      gender: { type: Sequelize.BOOLEAN },
+      gender: { type: Sequelize.STRING },
       image: { type: Sequelize.STRING },
       roleId: { type: Sequelize.STRING }, // fixed
       positionId: { type: Sequelize.STRING },
