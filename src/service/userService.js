@@ -98,6 +98,9 @@ let createNewUser = (data) => {
           gender: data.gender,
           roleId: data.roleId,
           positionId: data.positionId,
+          image: data.avatar
+            ? Buffer.from(data.avatar.split(",")[1], "base64")
+            : null,
         });
         resolve({
           errCode: 0,
@@ -156,6 +159,9 @@ let updateUserData = (data) => {
         user.roleId = data.roleId;
         user.positionId = data.positionId;
         user.gender = data.gender;
+        if (data.avatar) {
+          user.image = Buffer.from(data.avatar.split(",")[1], "base64");
+        }
         await user.save();
         resolve({
           errCode: 0,
