@@ -1,4 +1,4 @@
-const userService = require("../service/userService.js");
+const userService = require("../service/userService");
 
 let handleLogin = async (req, res) => {
   let email = req.body.email;

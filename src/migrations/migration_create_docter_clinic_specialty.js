@@ -10,9 +10,11 @@ module.exports = {
         primaryKey: true,
         type: Sequelize.INTEGER,
       },
-      doctorId: { type: Sequelize.INTEGER }, // fixed
+      doctorId: { type: Sequelize.INTEGER },
       clinicId: { type: Sequelize.INTEGER },
-      specialtyId: { type: Sequelize.INTEGER }, // fixed
+      specialtyId: { type: Sequelize.INTEGER },
+      createdAt: { allowNull: false, type: Sequelize.DATE },
+      updatedAt: { allowNull: false, type: Sequelize.DATE },
     });
   },
   async down(queryInterface) {

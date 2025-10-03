@@ -9,18 +9,10 @@ module.exports = {
         primaryKey: true,
         type: Sequelize.INTEGER,
       },
-      key: {
-        type: Sequelize.STRING,
-      },
-      type: {
-        type: Sequelize.STRING,
-      },
-      value_En: {
-        type: Sequelize.STRING,
-      },
-      value_Vi: {
-        type: Sequelize.STRING,
-      },
+      keyMap: { type: Sequelize.STRING },
+      type: { type: Sequelize.STRING },
+      value_En: { type: Sequelize.STRING },
+      value_Vi: { type: Sequelize.STRING },
     });
   },
   async down(queryInterface, Sequelize) {

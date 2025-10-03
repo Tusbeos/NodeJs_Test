@@ -13,7 +13,9 @@ module.exports = {
       maxNumber: { type: Sequelize.INTEGER },
       date: { type: Sequelize.DATE },
       timeType: { type: Sequelize.STRING },
-      doctorId: { type: Sequelize.INTEGER }, // fixed
+      doctorId: { type: Sequelize.INTEGER },
+      createdAt: { allowNull: false, type: Sequelize.DATE },
+      updatedAt: { allowNull: false, type: Sequelize.DATE },
     });
   },
   async down(queryInterface) {

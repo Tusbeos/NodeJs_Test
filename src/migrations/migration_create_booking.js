@@ -10,10 +10,12 @@ module.exports = {
         type: Sequelize.INTEGER,
       },
       statusId: { type: Sequelize.STRING },
-      doctorId: { type: Sequelize.INTEGER }, // fixed
-      patientId: { type: Sequelize.INTEGER }, // fixed
+      doctorId: { type: Sequelize.INTEGER },
+      patientId: { type: Sequelize.INTEGER },
       date: { type: Sequelize.DATE },
       timeType: { type: Sequelize.STRING },
+      createdAt: { allowNull: false, type: Sequelize.DATE },
+      updatedAt: { allowNull: false, type: Sequelize.DATE },
     });
   },
   async down(queryInterface) {
