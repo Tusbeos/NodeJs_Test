@@ -9,23 +9,11 @@ module.exports = {
         primaryKey: true,
         type: Sequelize.INTEGER,
       },
-      name: {
-        type: Sequelize.STRING,
-      },
-      address: {
-        type: Sequelize.TEXT,
-      },
-      image: {
-        type: Sequelize.STRING,
-      },
-      createdAt: {
-        allowNull: false,
-        type: Sequelize.DATE,
-      },
-      updatedAt: {
-        allowNull: false,
-        type: Sequelize.DATE,
-      },
+      name: { type: Sequelize.STRING },
+      address: { type: Sequelize.TEXT },
+      image: { type: Sequelize.STRING },
+      createdAt: { allowNull: false, type: Sequelize.DATE },
+      updatedAt: { allowNull: false, type: Sequelize.DATE },
     });
   },
   async down(queryInterface, Sequelize) {

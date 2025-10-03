@@ -1,6 +1,5 @@
-import { where } from "sequelize";
-import db from "../models/index.js";
-import bcrypt from "bcryptjs";
+const db = require("../models");
+const bcrypt = require("bcryptjs");
 
 const salt = bcrypt.genSaltSync(10);
 
@@ -160,7 +159,13 @@ let updateUserData = (data) => {
         user.positionId = data.positionId;
         user.gender = data.gender;
         if (data.avatar) {
-          user.image = Buffer.from(data.avatar.split(",")[1], "base64");
+          let base64 = data.avatar;
+          if (base64.startsWith("data:")) {
+            base64 = base64.split(",")[1];
+          }
+          if (base64) {
+            user.image = Buffer.from(base64, "base64");
+          }
         }
         await user.save();
         resolve({
