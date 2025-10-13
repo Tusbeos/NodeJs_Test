@@ -1,3 +1,5 @@
+import { where } from "sequelize";
+
 const db = require("../models");
 
 let getTopDoctorHome = async (limit) => {
@@ -77,8 +79,47 @@ let saveInfoDoctor = (inputData) => {
   });
 };
 
+let getDetailDoctorByIdService = (inputId) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      if (!inputId) {
+        resolve({ errCode: 1, errMessage: "Missing Parameter!" });
+      } else {
+        let data = await db.User.findOne({
+          where: {
+            id: inputId,
+          },
+          attributes: {
+            exclude: ["password", "image"],
+          },
+          include: [
+            {
+              model: db.Markdown,
+              attributes: ["description", "contentHTML", "contentMarkdown"],
+            },
+            {
+              model: db.Allcode,
+              as: "positionData",
+              attributes: ["value_En", "value_Vi"],
+            },
+          ],
+          nest: true,
+          raw: true,
+        });
+        resolve({
+          errCode: 0,
+          data: data,
+        });
+      }
+    } catch (e) {
+      reject(e);
+    }
+  });
+};
+
 export default {
   getTopDoctorHome: getTopDoctorHome,
   getAllDoctors: getAllDoctors,
   saveInfoDoctor: saveInfoDoctor,
+  getDetailDoctorByIdService: getDetailDoctorByIdService,
 };
