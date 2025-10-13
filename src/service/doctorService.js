@@ -32,6 +32,53 @@ let getTopDoctorHome = async (limit) => {
   });
 };
 
+let getAllDoctors = () => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      let doctors = await db.User.findAll({
+        where: { roleId: "R2" },
+        attributes: {
+          exclude: ["password", "image"],
+        },
+      });
+      resolve({ errCode: 0, data: doctors });
+    } catch (e) {
+      reject(e);
+    }
+  });
+};
+
+let saveInfoDoctor = (inputData) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const { doctorId, contentHTML, contentMarkdown, description } =
+        inputData || {};
+
+      if (!doctorId || !contentHTML || !contentMarkdown) {
+        resolve({ errCode: 1, errMessage: "Missing Parameter" });
+        return;
+      }
+
+      await db.Markdown.create({
+        doctorId,
+        contentHTML,
+        contentMarkdown,
+        description,
+      });
+
+      resolve({
+        errCode: 0,
+        errMessage: "Save info doctor succeed",
+      });
+    } catch (e) {
+      console.error("saveInfoDoctor ERROR:", e);
+      reject(e);
+    }
+  });
+};
+
 export default {
   getTopDoctorHome: getTopDoctorHome,
+  getAllDoctors: getAllDoctors,
+  saveInfoDoctor: saveInfoDoctor,
 };
