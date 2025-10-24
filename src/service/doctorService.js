@@ -90,7 +90,7 @@ let getDetailDoctorByIdService = (inputId) => {
             id: inputId,
           },
           attributes: {
-            exclude: ["password", "image"],
+            exclude: ["password"],
           },
           include: [
             {
@@ -104,12 +104,19 @@ let getDetailDoctorByIdService = (inputId) => {
             },
           ],
           nest: true,
-          raw: true,
+          raw: false,
         });
         resolve({
           errCode: 0,
           data: data,
         });
+
+        if (data && data.image) {
+          data.image = data.image.toString("base64");
+        }
+        if (!data) {
+          data = {};
+        }
       }
     } catch (e) {
       reject(e);
