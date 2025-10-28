@@ -53,21 +53,32 @@ let getAllDoctors = () => {
 let saveInfoDoctor = (inputData) => {
   return new Promise(async (resolve, reject) => {
     try {
-      const { doctorId, contentHTML, contentMarkdown, description } =
+      const { action, doctorId, contentHTML, contentMarkdown, description } =
         inputData || {};
 
-      if (!doctorId || !contentHTML || !contentMarkdown) {
+      if (!doctorId || !contentHTML || !contentMarkdown || !action) {
         resolve({ errCode: 1, errMessage: "Missing Parameter" });
         return;
       }
-
-      await db.Markdown.create({
-        doctorId,
-        contentHTML,
-        contentMarkdown,
-        description,
-      });
-
+      if (action === "CREATE") {
+        await db.Markdown.create({
+          doctorId,
+          contentHTML,
+          contentMarkdown,
+          description,
+        });
+      } else if (action === "EDIT") {
+        let doctorMarkdown = await db.Markdown.findOne({
+          where: { doctorId: doctorId },
+          raw: false,
+        });
+        if (doctorMarkdown) {
+          doctorMarkdown.contentHTML = contentHTML;
+          doctorMarkdown.contentMarkdown = contentMarkdown;
+          doctorMarkdown.description = description;
+          await doctorMarkdown.save();
+        }
+      }
       resolve({
         errCode: 0,
         errMessage: "Save info doctor succeed",
