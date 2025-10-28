@@ -23,6 +23,11 @@ let getTopDoctorHome = async (limit) => {
             as: "genderData",
             attributes: ["value_En", "value_Vi"],
           },
+          {
+            model: db.Allcode,
+            as: "roleData",
+            attributes: ["value_En", "value_Vi"],
+          },
         ],
         nest: true,
         raw: true,
@@ -111,6 +116,11 @@ let getDetailDoctorByIdService = (inputId) => {
             {
               model: db.Allcode,
               as: "positionData",
+              attributes: ["value_En", "value_Vi"],
+            },
+            {
+              model: db.Allcode,
+              as: "roleData",
               attributes: ["value_En", "value_Vi"],
             },
           ],
