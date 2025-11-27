@@ -17,7 +17,7 @@ module.exports = (sequelize, DataTypes) => {
       modelName: "Schedule",
       tableName: "schedules",
       freezeTableName: true,
-      timestamps: false,
+      timestamps: true,
     }
   );
   return Schedule;

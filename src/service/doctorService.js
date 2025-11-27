@@ -1,6 +1,8 @@
 import { where } from "sequelize";
-
+import _ from "lodash";
+import { raw } from "body-parser";
 const db = require("../models");
+const MAX_NUMBER_SCHEDULE = process.env.MAX_NUMBER_SCHEDULE;
 
 let getTopDoctorHome = async (limit) => {
   return new Promise(async (resolve, reject) => {
@@ -145,9 +147,57 @@ let getDetailDoctorByIdService = (inputId) => {
   });
 };
 
+let bulkCreateSchedule = (data) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      if (!data.arrSchedule || !data.doctorId || !data.formattedDate) {
+        resolve({
+          errCode: 1,
+          errMessage: "Missing required parameter!",
+        });
+      } else {
+        let schedule = data.arrSchedule;
+        if (schedule && schedule.length > 0) {
+          schedule = schedule.map((item) => {
+            item.maxNumber = MAX_NUMBER_SCHEDULE;
+            item.date = new Date(parseInt(item.date)).getTime();
+            return item;
+          });
+        }
+        let existing = await db.Schedule.findAll({
+          where: {
+            doctorId: data.doctorId,
+            date: data.formattedDate,
+          },
+          attributes: ["timeType", "date", "doctorId", "maxNumber"],
+          raw: true,
+        });
+        let toCreate = _.differenceWith(schedule, existing, (a, b) => {
+          return (
+            a.timeType === b.timeType &&
+            new Date(a.date).toDateString() === new Date(b.date).toDateString()
+          );
+        });
+        console.log("existing: ", existing);
+        console.log("toCreate: ", toCreate);
+        // if (toCreate && toCreate.length > 0) {
+        //   await db.Schedule.bulkCreate(toCreate);
+        // }
+        resolve({
+          errCode: 0,
+          errMessage: "OK",
+        });
+      }
+    } catch (e) {
+      reject(e);
+    }
+  });
+};
+
 export default {
-  getTopDoctorHome: getTopDoctorHome,
-  getAllDoctors: getAllDoctors,
-  saveInfoDoctor: saveInfoDoctor,
-  getDetailDoctorByIdService: getDetailDoctorByIdService,
+  getTopDoctorHome,
+  getAllDoctors,
+  saveInfoDoctor,
+  getDetailDoctorByIdService,
+  bulkCreateSchedule,
 };
