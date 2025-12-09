@@ -64,10 +64,32 @@ let bulkCreateSchedule = async (req, res) => {
   }
 };
 
+let getScheduleByDate = async (req, res) => {
+  try {
+    let doctorId = req.query.doctorId;
+    let date = req.query.date;
+    if (!doctorId || !date) {
+      return res.status(200).json({
+        errCode: 1,
+        errMessage: "Missing required parameter",
+      });
+    }
+    let response = await doctorService.getScheduleByDate(doctorId, date);
+    return res.status(200).json(response);
+  } catch (e) {
+    console.log(e);
+    return res.status(200).json({
+      errCode: -1,
+      errMessage: "Error from server",
+    });
+  }
+};
+
 module.exports = {
   getTopDoctorHome: getTopDoctorHome,
   getAllDoctors: getAllDoctors,
   saveInfoDoctor: saveInfoDoctor,
   getDetailDoctorById: getDetailDoctorById,
   bulkCreateSchedule: bulkCreateSchedule,
+  getScheduleByDate: getScheduleByDate,
 };
