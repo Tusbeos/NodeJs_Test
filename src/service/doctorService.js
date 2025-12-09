@@ -1,5 +1,5 @@
 import { where } from "sequelize";
-import _ from "lodash";
+import _, { includes } from "lodash";
 import { raw } from "body-parser";
 const db = require("../models");
 const MAX_NUMBER_SCHEDULE = process.env.MAX_NUMBER_SCHEDULE;
@@ -172,6 +172,7 @@ let bulkCreateSchedule = (data) => {
             date: dateToQuery,
           },
           attributes: ["timeType", "date", "doctorId", "maxNumber"],
+          nest: true,
           raw: true,
         });
         let toCreate = _.differenceWith(schedule, existing, (a, b) => {
@@ -210,6 +211,15 @@ let getScheduleByDate = (doctorId, date) => {
           doctorId: doctorId,
           date: date,
         },
+        include: [
+          {
+            model: db.Allcode,
+            as: "timeTypeData",
+            attributes: ["value_En", "value_Vi"],
+          },
+        ],
+        raw: false,
+        nest: true,
       });
       if (!schedules) schedules = [];
       resolve({
