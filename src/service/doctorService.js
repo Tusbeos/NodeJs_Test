@@ -155,39 +155,67 @@ let bulkCreateSchedule = (data) => {
           errCode: 1,
           errMessage: "Missing required parameter!",
         });
+        return;
       } else {
         let schedule = data.arrSchedule;
         if (schedule && schedule.length > 0) {
           schedule = schedule.map((item) => {
             item.maxNumber = MAX_NUMBER_SCHEDULE;
-            item.date = new Date(parseInt(item.date)).getTime();
+            item.date = new Date(Number(item.date)).getTime();
             return item;
           });
         }
+        let dateToQuery = schedule.length > 0 ? schedule[0].date : "";
         let existing = await db.Schedule.findAll({
           where: {
             doctorId: data.doctorId,
-            date: data.formattedDate,
+            date: dateToQuery,
           },
           attributes: ["timeType", "date", "doctorId", "maxNumber"],
           raw: true,
         });
         let toCreate = _.differenceWith(schedule, existing, (a, b) => {
-          return (
-            a.timeType === b.timeType &&
-            new Date(a.date).toDateString() === new Date(b.date).toDateString()
-          );
+          return a.timeType === b.timeType && +a.date === +b.date;
         });
+        console.log("----------------------------------------------");
         console.log("existing: ", existing);
         console.log("toCreate: ", toCreate);
-        // if (toCreate && toCreate.length > 0) {
-        //   await db.Schedule.bulkCreate(toCreate);
-        // }
+        if (toCreate && toCreate.length > 0) {
+          await db.Schedule.bulkCreate(toCreate);
+        }
         resolve({
           errCode: 0,
           errMessage: "OK",
         });
       }
+    } catch (e) {
+      reject(e);
+    }
+  });
+};
+
+let getScheduleByDate = (doctorId, date) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      if (!doctorId || !date) {
+        resolve({
+          errCode: 1,
+          errMessage: "Missing required parameter!",
+        });
+        return;
+      }
+
+      let schedules = await db.Schedule.findAll({
+        where: {
+          doctorId: doctorId,
+          date: date,
+        },
+      });
+      if (!schedules) schedules = [];
+      resolve({
+        errCode: 0,
+        data: schedules,
+      });
     } catch (e) {
       reject(e);
     }
@@ -200,4 +228,5 @@ export default {
   saveInfoDoctor,
   getDetailDoctorByIdService,
   bulkCreateSchedule,
+  getScheduleByDate,
 };
