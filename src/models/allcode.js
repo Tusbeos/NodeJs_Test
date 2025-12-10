@@ -1,21 +1,21 @@
 "use strict";
 const { Model } = require("sequelize");
 module.exports = (sequelize, DataTypes) => {
-  class Allcode extends Model {
+  class AllCode extends Model {
     static associate(models) {
-      Allcode.hasMany(models.User, {
+      AllCode.hasMany(models.User, {
         foreignKey: "positionId",
         as: "positionData",
       });
-      Allcode.hasMany(models.User, { foreignKey: "gender", as: "genderData" });
-      Allcode.hasMany(models.User, { foreignKey: "roleId", as: "roleData" });
-      Allcode.hasMany(models.Schedule, {
+      AllCode.hasMany(models.User, { foreignKey: "gender", as: "genderData" });
+      AllCode.hasMany(models.User, { foreignKey: "roleId", as: "roleData" });
+      AllCode.hasMany(models.Schedule, {
         foreignKey: "timeType",
         as: "timeTypeData",
       });
     }
   }
-  Allcode.init(
+  AllCode.init(
     {
       keyMap: DataTypes.STRING,
       type: DataTypes.STRING,
@@ -24,11 +24,11 @@ module.exports = (sequelize, DataTypes) => {
     },
     {
       sequelize,
-      modelName: "Allcode",
-      tableName: "allcodes",
+      modelName: "AllCode",
+      tableName: "allCodes",
       freezeTableName: true,
       timestamps: false,
     }
   );
-  return Allcode;
+  return AllCode;
 };

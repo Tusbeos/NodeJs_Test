@@ -16,17 +16,17 @@ let getTopDoctorHome = async (limit) => {
         },
         include: [
           {
-            model: db.Allcode,
+            model: db.AllCode,
             as: "positionData",
             attributes: ["value_En", "value_Vi"],
           },
           {
-            model: db.Allcode,
+            model: db.AllCode,
             as: "genderData",
             attributes: ["value_En", "value_Vi"],
           },
           {
-            model: db.Allcode,
+            model: db.AllCode,
             as: "roleData",
             attributes: ["value_En", "value_Vi"],
           },
@@ -116,12 +116,12 @@ let getDetailDoctorByIdService = (inputId) => {
               attributes: ["description", "contentHTML", "contentMarkdown"],
             },
             {
-              model: db.Allcode,
+              model: db.AllCode,
               as: "positionData",
               attributes: ["value_En", "value_Vi"],
             },
             {
-              model: db.Allcode,
+              model: db.AllCode,
               as: "roleData",
               attributes: ["value_En", "value_Vi"],
             },
@@ -213,7 +213,7 @@ let getScheduleByDate = (doctorId, date) => {
         },
         include: [
           {
-            model: db.Allcode,
+            model: db.AllCode,
             as: "timeTypeData",
             attributes: ["value_En", "value_Vi"],
           },

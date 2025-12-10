@@ -205,9 +205,9 @@ let getAllCodeService = (typeInput) => {
         });
       } else {
         let result = {};
-        let allcode = await db.Allcode.findAll({ where: { type: typeInput } });
+        let allCode = await db.AllCode.findAll({ where: { type: typeInput } });
         result.errCode = 0;
-        result.data = allcode;
+        result.data = allCode;
         resolve(result);
       }
     } catch (e) {
