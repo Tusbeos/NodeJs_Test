@@ -7,15 +7,15 @@ module.exports = (sequelize, DataTypes) => {
   Specialty.init(
     {
       name: DataTypes.STRING,
-      image: DataTypes.STRING, // nếu migration còn "imgage", đổi lại cho khớp
+      image: DataTypes.STRING,
       description: DataTypes.TEXT,
     },
     {
       sequelize,
       modelName: "Specialty",
-      tableName: "specialties", // nếu chưa sửa migration, dùng "spacialtys"
+      tableName: "specialties",
       freezeTableName: true,
-      timestamps: false, // migration không có createdAt/updatedAt
+      timestamps: false,
     }
   );
   return Specialty;
