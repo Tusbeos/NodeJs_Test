@@ -2,7 +2,7 @@
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface, Sequelize) {
-    await queryInterface.createTable("docter_clinic_specialty", {
+    await queryInterface.createTable("doctor_clinic_specialty", {
       // giữ nguyên tên bảng
       id: {
         allowNull: false,
@@ -18,6 +18,6 @@ module.exports = {
     });
   },
   async down(queryInterface) {
-    await queryInterface.dropTable("docter_clinic_specialty");
+    await queryInterface.dropTable("doctor_clinic_specialty");
   },
 };
