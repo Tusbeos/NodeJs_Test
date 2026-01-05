@@ -57,44 +57,95 @@ let getAllDoctors = () => {
   });
 };
 
-let saveInfoDoctor = (inputData) => {
-  return new Promise(async (resolve, reject) => {
-    try {
-      const { action, doctorId, contentHTML, contentMarkdown, description } =
-        inputData || {};
+let saveInfoDoctor = async (inputData) => {
+  try {
+    let checkObj = {
+      doctorId: inputData.doctorId,
+      contentHTML: inputData.contentHTML,
+      contentMarkdown: inputData.contentMarkdown,
+      action: inputData.action,
+      selectedPrice: inputData.selectedPrice,
+      selectedPayment: inputData.selectedPayment,
+      selectedProvince: inputData.selectedProvince,
+      nameClinic: inputData.nameClinic,
+      addressClinic: inputData.addressClinic,
+      note: inputData.note,
+    };
 
-      if (!doctorId || !contentHTML || !contentMarkdown || !action) {
-        resolve({ errCode: 1, errMessage: "Missing Parameter" });
-        return;
+    let isValid = true;
+    let element = "";
+    for (const key in checkObj) {
+      if (!checkObj[key]) {
+        isValid = false;
+        element = key;
+        break;
       }
-      if (action === "CREATE") {
-        await db.Markdown.create({
-          doctorId,
-          contentHTML,
-          contentMarkdown,
-          description,
-        });
-      } else if (action === "EDIT") {
-        let doctorMarkdown = await db.Markdown.findOne({
-          where: { doctorId: doctorId },
-          raw: false,
-        });
-        if (doctorMarkdown) {
-          doctorMarkdown.contentHTML = contentHTML;
-          doctorMarkdown.contentMarkdown = contentMarkdown;
-          doctorMarkdown.description = description;
-          await doctorMarkdown.save();
-        }
-      }
-      resolve({
-        errCode: 0,
-        errMessage: "Save info doctor succeed",
-      });
-    } catch (e) {
-      console.error("saveInfoDoctor ERROR:", e);
-      reject(e);
     }
-  });
+
+    if (!isValid) {
+      return {
+        errCode: 1,
+        errMessage: `Missing parameter: ${element}`,
+      };
+    }
+    if (inputData.action === "CREATE") {
+      await db.Markdown.create({
+        doctorId: inputData.doctorId,
+        contentHTML: inputData.contentHTML,
+        contentMarkdown: inputData.contentMarkdown,
+        description: inputData.description,
+      });
+    } else if (inputData.action === "EDIT") {
+      let doctorMarkdown = await db.Markdown.findOne({
+        where: { doctorId: inputData.doctorId },
+        raw: false,
+      });
+
+      if (doctorMarkdown) {
+        doctorMarkdown.contentHTML = inputData.contentHTML;
+        doctorMarkdown.contentMarkdown = inputData.contentMarkdown;
+        doctorMarkdown.description = inputData.description;
+        await doctorMarkdown.save();
+      }
+    }
+
+    let doctorInfo = await db.DoctorInfo.findOne({
+      where: { doctorId: inputData.doctorId },
+      raw: false,
+    });
+
+    if (doctorInfo) {
+      doctorInfo.priceId = inputData.selectedPrice;
+      doctorInfo.paymentId = inputData.selectedPayment;
+      doctorInfo.provinceId = inputData.selectedProvince;
+      doctorInfo.nameClinic = inputData.nameClinic;
+      doctorInfo.addressClinic = inputData.addressClinic;
+      doctorInfo.note = inputData.note;
+
+      await doctorInfo.save();
+    } else {
+      await db.DoctorInfo.create({
+        doctorId: inputData.doctorId,
+        priceId: inputData.selectedPrice,
+        paymentId: inputData.selectedPayment,
+        provinceId: inputData.selectedProvince,
+        nameClinic: inputData.nameClinic,
+        addressClinic: inputData.addressClinic,
+        note: inputData.note,
+      });
+    }
+
+    return {
+      errCode: 0,
+      errMessage: "Save info doctor succeed",
+    };
+  } catch (e) {
+    console.error("saveInfoDoctor ERROR:", e);
+    return {
+      errCode: -1,
+      errMessage: "Error from server",
+    };
+  }
 };
 
 let getDetailDoctorByIdService = (inputId) => {

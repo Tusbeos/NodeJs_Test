@@ -1,10 +1,10 @@
 "use strict";
 const { Model } = require("sequelize");
 module.exports = (sequelize, DataTypes) => {
-  class Docter_Clinic_Specialty extends Model {
+  class Doctor_Clinic_Specialty extends Model {
     static associate(models) {}
   }
-  Docter_Clinic_Specialty.init(
+  Doctor_Clinic_Specialty.init(
     {
       doctorId: DataTypes.INTEGER,
       clinicId: DataTypes.INTEGER,
@@ -12,11 +12,11 @@ module.exports = (sequelize, DataTypes) => {
     },
     {
       sequelize,
-      modelName: "Docter_Clinic_Specialty",
-      tableName: "docter_clinic_specialty", // giữ nguyên như migration
+      modelName: "Doctor_Clinic_Specialty",
+      tableName: "doctor_clinic_specialty",
       freezeTableName: true,
       timestamps: false,
     }
   );
-  return Docter_Clinic_Specialty;
+  return Doctor_Clinic_Specialty;
 };
