@@ -1,6 +1,7 @@
 import { where } from "sequelize";
 import _, { includes } from "lodash";
 import { raw } from "body-parser";
+import e from "cors";
 const db = require("../models");
 const MAX_NUMBER_SCHEDULE = process.env.MAX_NUMBER_SCHEDULE;
 
@@ -175,6 +176,29 @@ let getDetailDoctorByIdService = (inputId) => {
               model: db.AllCode,
               as: "roleData",
               attributes: ["value_En", "value_Vi"],
+            },
+            {
+              model: db.DoctorInfo,
+              attributes: {
+                exclude: ["id", "doctorId", "createdAt", "updatedAt"],
+              },
+              include: [
+                {
+                  model: db.AllCode,
+                  as: "priceTypeData",
+                  attributes: ["value_En", "value_Vi"],
+                },
+                {
+                  model: db.AllCode,
+                  as: "provinceTypeData",
+                  attributes: ["value_En", "value_Vi"],
+                },
+                {
+                  model: db.AllCode,
+                  as: "paymentTypeData",
+                  attributes: ["value_En", "value_Vi"],
+                },
+              ],
             },
           ],
           nest: true,
