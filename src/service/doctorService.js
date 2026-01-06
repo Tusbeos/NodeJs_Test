@@ -253,9 +253,6 @@ let bulkCreateSchedule = (data) => {
         let toCreate = _.differenceWith(schedule, existing, (a, b) => {
           return a.timeType === b.timeType && +a.date === +b.date;
         });
-        console.log("----------------------------------------------");
-        console.log("existing: ", existing);
-        console.log("toCreate: ", toCreate);
         if (toCreate && toCreate.length > 0) {
           await db.Schedule.bulkCreate(toCreate);
         }
@@ -307,6 +304,62 @@ let getScheduleByDate = (doctorId, date) => {
   });
 };
 
+let bulkCreateDoctorService = (data) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      if (!data.arrDoctorService || !data.doctorId) {
+        resolve({
+          errCode: 1,
+          errMessage: "Missing required parameter!",
+        });
+      } else {
+        let services = data.arrDoctorService;
+        if (services && services.length > 0) {
+          services = services.map((item) => {
+            return {
+              ...item,
+              doctorId: data.doctorId,
+            };
+          });
+        }
+        await db.DoctorServices.destroy({
+          where: { doctorId: data.doctorId },
+        });
+        await db.DoctorServices.bulkCreate(services);
+        resolve({
+          errCode: 0,
+          errMessage: "OK",
+        });
+      }
+    } catch (e) {
+      reject(e);
+    }
+  });
+};
+let getListDoctorServices = (inputId) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      if (!inputId) {
+        resolve({
+          errCode: 1,
+          errMessage: "Missing required parameter!",
+        });
+      } else {
+        let services = await db.DoctorServices.findAll({
+          where: { doctorId: inputId },
+          attributes: ["nameVi", "nameEn", "price"],
+        });
+
+        resolve({
+          errCode: 0,
+          data: services,
+        });
+      }
+    } catch (e) {
+      reject(e);
+    }
+  });
+};
 export default {
   getTopDoctorHome,
   getAllDoctors,
@@ -314,4 +367,6 @@ export default {
   getDetailDoctorByIdService,
   bulkCreateSchedule,
   getScheduleByDate,
+  bulkCreateDoctorService,
+  getListDoctorServices,
 };
