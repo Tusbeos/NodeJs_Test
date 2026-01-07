@@ -43,6 +43,7 @@ const initWebRouter = (app) => {
     "/api/get-list-doctor-services",
     doctorController.getListDoctorServices
   );
+
   app.use("/", router);
 };
 

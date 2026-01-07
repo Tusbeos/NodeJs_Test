@@ -347,7 +347,13 @@ let getListDoctorServices = (inputId) => {
       } else {
         let services = await db.DoctorServices.findAll({
           where: { doctorId: inputId },
-          attributes: ["nameVi", "nameEn", "price"],
+          attributes: [
+            "nameVi",
+            "nameEn",
+            "price",
+            "descriptionVi",
+            "descriptionEn",
+          ],
         });
 
         resolve({
@@ -360,6 +366,7 @@ let getListDoctorServices = (inputId) => {
     }
   });
 };
+
 export default {
   getTopDoctorHome,
   getAllDoctors,

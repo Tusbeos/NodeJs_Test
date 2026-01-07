@@ -13,7 +13,8 @@ module.exports = {
       nameVi: { type: Sequelize.STRING },
       nameEn: { type: Sequelize.STRING },
       price: { type: Sequelize.STRING },
-      description: { type: Sequelize.TEXT },
+      descriptionVi: { type: Sequelize.TEXT },
+      descriptionEn: { type: Sequelize.TEXT },
 
       createdAt: { allowNull: false, type: Sequelize.DATE },
       updatedAt: { allowNull: false, type: Sequelize.DATE },
