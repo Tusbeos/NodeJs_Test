@@ -367,6 +367,51 @@ let getListDoctorServices = (inputId) => {
   });
 };
 
+let getExtraInfoDoctorByIdService = (inputId) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      if (!inputId) {
+        resolve({
+          errCode: 1,
+          errMessage: "Missing required parameter!",
+        });
+      } else {
+        let info = await db.DoctorInfo.findOne({
+          where: { doctorId: inputId },
+          attributes: {
+            exclude: ["id", "doctorId", "createdAt", "updatedAt"],
+          },
+          include: [
+            {
+              model: db.AllCode,
+              as: "priceTypeData",
+              attributes: ["value_En", "value_Vi"],
+            },
+            {
+              model: db.AllCode,
+              as: "provinceTypeData",
+              attributes: ["value_En", "value_Vi"],
+            },
+            {
+              model: db.AllCode,
+              as: "paymentTypeData",
+              attributes: ["value_En", "value_Vi"],
+            },
+          ],
+          raw: false,
+          nest: true,
+        });
+        if (!info) info = {};
+        resolve({
+          errCode: 0,
+          data: info,
+        });
+      }
+    } catch (e) {
+      reject(e);
+    }
+  });
+};
 export default {
   getTopDoctorHome,
   getAllDoctors,
@@ -376,4 +421,5 @@ export default {
   getScheduleByDate,
   bulkCreateDoctorService,
   getListDoctorServices,
+  getExtraInfoDoctorByIdService,
 };

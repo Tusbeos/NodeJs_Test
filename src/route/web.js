@@ -43,7 +43,10 @@ const initWebRouter = (app) => {
     "/api/get-list-doctor-services",
     doctorController.getListDoctorServices
   );
-
+  router.get(
+    "/api/get-extra-info-doctor-by-id",
+    doctorController.getExtraInfoDoctorById
+  );
   app.use("/", router);
 };
 
