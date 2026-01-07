@@ -108,6 +108,9 @@ let getListDoctorServices = async (req, res) => {
     });
   }
 };
+
+
+
 module.exports = {
   getTopDoctorHome: getTopDoctorHome,
   getAllDoctors: getAllDoctors,
@@ -117,4 +120,5 @@ module.exports = {
   getScheduleByDate: getScheduleByDate,
   bulkCreateDoctorServices: bulkCreateDoctorServices,
   getListDoctorServices: getListDoctorServices,
+
 };
