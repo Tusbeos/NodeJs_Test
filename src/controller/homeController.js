@@ -1,6 +1,6 @@
 const e = require("express");
 const db = require("../models/index");
-const CRUDService = require("../service/CRUDService");
+const CRUDService = require("../services/CRUDService");
 
 let getHomePage = async (req, res) => {
   try {

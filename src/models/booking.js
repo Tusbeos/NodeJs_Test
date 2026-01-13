@@ -9,7 +9,7 @@ module.exports = (sequelize, DataTypes) => {
       statusId: DataTypes.STRING,
       doctorId: DataTypes.INTEGER,
       patientId: DataTypes.INTEGER,
-      date: DataTypes.DATE,
+      date: DataTypes.STRING,
       timeType: DataTypes.STRING,
     },
     {
@@ -17,7 +17,7 @@ module.exports = (sequelize, DataTypes) => {
       modelName: "Booking",
       tableName: "bookings",
       freezeTableName: true,
-      timestamps: false,
+      timestamps: true,
     }
   );
   return Booking;

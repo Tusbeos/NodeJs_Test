@@ -2,6 +2,7 @@ import express from "express";
 import homeController from "../controller/homeController.js";
 import userController from "../controller/userController.js";
 import doctorController from "../controller/doctorController.js";
+import patientController from "../controller/patientController.js";
 const router = express.Router();
 
 const initWebRouter = (app) => {
@@ -48,6 +49,11 @@ const initWebRouter = (app) => {
     doctorController.getExtraInfoDoctorById
   );
   app.use("/", router);
+
+  router.post(
+    "/api/patient-book-appointment",
+    patientController.patientBookAppointment
+  );
 };
 
 export default initWebRouter;
