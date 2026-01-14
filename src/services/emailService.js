@@ -1,6 +1,7 @@
 require("dotenv").config();
-import nodemailer from "nodemailer";
+const nodemailer = require("nodemailer");
 const emailCommon = require("./emailTemplates");
+
 let sendSimpleEmail = async (dataSend) => {
   const transporter = nodemailer.createTransport({
     host: "smtp.gmail.com",
@@ -10,18 +11,27 @@ let sendSimpleEmail = async (dataSend) => {
       user: process.env.EMAIL_APP,
       pass: process.env.EMAIL_APP_PASSWORD,
     },
+    tls: {
+      rejectUnauthorized: false,
+    },
   });
 
-  (async () => {
+  try {
     const info = await transporter.sendMail({
       from: '"Booking Care" <Biconghi123@gmail.com>',
-      to: dataSend.reciverEmail,
-      subject: "Thông tin Đặt lịch khám bệnh",
+      to: dataSend.receiverEmail,
+      subject:
+        dataSend.language === "vi"
+          ? "Thông tin đặt lịch khám bệnh"
+          : "Booking appointment information",
       html: emailCommon.getBookingEmailTemplate(dataSend),
     });
-
     console.log("Message sent:", info.messageId);
-  })();
+    return info;
+  } catch (error) {
+    console.log("Lỗi gửi email:", error);
+    return null;
+  }
 };
 
 module.exports = {

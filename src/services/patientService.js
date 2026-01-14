@@ -4,17 +4,26 @@ import emailService from "./emailService";
 let patientBookAppointmentService = async (data) => {
   return new Promise(async (resolve, reject) => {
     try {
-      if (!data.email || !data.doctorId || !data.date || !data.timeType) {
+      if (
+        !data.email ||
+        !data.doctorId ||
+        !data.date ||
+        !data.timeType ||
+        !data.fullName ||
+        !data.timeString ||
+        !data.doctorName
+      ) {
         resolve({
           errCode: 1,
           errMessage: "Missing Parameter",
         });
       } else {
         await emailService.sendSimpleEmail({
-          reciverEmail: data.email,
+          receiverEmail: data.email,
           patientName: data.fullName,
           time: data.timeString,
           doctorName: data.doctorName,
+          language: data.language,
           // redirectLink: `${process.env.URL_REACT}/verify-booking?token=${data.token}&doctorId=${data.doctorId}`,
         });
         let user = await db.User.findOrCreate({
@@ -32,7 +41,7 @@ let patientBookAppointmentService = async (data) => {
               statusId: "S1",
               doctorId: data.doctorId,
               patientId: user[0].id,
-              data: data.date,
+              date: data.date,
               timeType: data.timeType,
             },
           });

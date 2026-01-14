@@ -14,6 +14,7 @@ module.exports = {
       patientId: { type: Sequelize.INTEGER },
       date: { type: Sequelize.STRING },
       timeType: { type: Sequelize.STRING },
+      token: { type: Sequelize.STRING },
       createdAt: { allowNull: false, type: Sequelize.DATE },
       updatedAt: { allowNull: false, type: Sequelize.DATE },
     });
