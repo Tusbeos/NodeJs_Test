@@ -28,6 +28,7 @@
     "express": "^4.21.2",
     "lodash": "^4.17.21",
     "mysql2": "^3.14.3",
+    "nodemailer": "^7.0.12",
     "send": "^0.18.0",
     "sequelize": "^6.37.7",
     "serve-static": "^1.15.0",
