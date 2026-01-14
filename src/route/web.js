@@ -48,12 +48,11 @@ const initWebRouter = (app) => {
     "/api/get-extra-info-doctor-by-id",
     doctorController.getExtraInfoDoctorById
   );
-  app.use("/", router);
-
   router.post(
     "/api/patient-book-appointment",
     patientController.patientBookAppointment
   );
+  app.use("/", router);
 };
 
 export default initWebRouter;
