@@ -10,10 +10,19 @@ module.exports = {
         type: Sequelize.INTEGER,
       },
       name: { type: Sequelize.STRING },
-      image: { type: Sequelize.STRING },
-      description: { type: Sequelize.TEXT },
-      createdAt: { allowNull: false, type: Sequelize.DATE },
-      updatedAt: { allowNull: false, type: Sequelize.DATE },
+      image: { type: Sequelize.BLOB("long") },
+      descriptionHTML: { type: Sequelize.TEXT },
+      descriptionMarkdown: { type: Sequelize.TEXT },
+      createdAt: {
+        allowNull: false,
+        type: Sequelize.DATE,
+        defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
+      },
+      updatedAt: {
+        allowNull: false,
+        type: Sequelize.DATE,
+        defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
+      },
     });
   },
   async down(queryInterface) {
