@@ -2,19 +2,22 @@ import specialtyService from "../services/specialtyService";
 
 let createNewSpecialty = async (req, res) => {
   try {
-    // Log xem request đã đến chưa
-    console.log("--- [Controller] Nhận request tạo chuyên khoa!");
-
-    let infor = await specialtyService.createNewSpecialty(req.body);
-
-    console.log("--- [Controller] Kết quả từ Service:", infor);
-
-    return res.status(200).json(infor);
+    let info = await specialtyService.createNewSpecialty(req.body);
+    return res.status(200).json(info);
   } catch (e) {
-    // NẾU CÓ LỖI, NÓ SẼ HIỆN Ở ĐÂY
-    console.log("!!! [Controller] CÓ LỖI XẢY RA:", e);
-
     return res.status(200).json({
+      errCode: -1,
+      errMessage: "Error from server",
+    });
+  }
+};
+
+let getAllSpecialty = async (req, res) => {
+  try {
+    let specialties = await specialtyService.getAllSpecialty();
+    return res.status(200).json(specialties);
+  } catch (e) {
+    return res.status(500).json({
       errCode: -1,
       errMessage: "Error from server",
     });
@@ -22,4 +25,5 @@ let createNewSpecialty = async (req, res) => {
 };
 module.exports = {
   createNewSpecialty: createNewSpecialty,
+  getAllSpecialty: getAllSpecialty,
 };

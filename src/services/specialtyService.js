@@ -31,4 +31,30 @@ let createNewSpecialty = (data) => {
   });
 };
 
-module.exports = { createNewSpecialty: createNewSpecialty };
+let getAllSpecialty = () => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      let specialties = await db.Specialty.findAll();
+      if (specialties && specialties.length > 0) {
+        specialties.map((item) => {
+          if (item.image) {
+            item.image = Buffer.from(item.image).toString("base64");
+          }
+          return item;
+        });
+      }
+      resolve({
+        errCode: 0,
+        errMessage: "OK",
+        data: specialties,
+      });
+    } catch (e) {
+      reject(e);
+    }
+  });
+};
+
+module.exports = {
+  createNewSpecialty: createNewSpecialty,
+  getAllSpecialty: getAllSpecialty,
+};

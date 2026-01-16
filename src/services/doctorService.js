@@ -1,7 +1,4 @@
-import { where } from "sequelize";
 import _, { includes } from "lodash";
-import { raw } from "body-parser";
-import e from "cors";
 const db = require("../models");
 const MAX_NUMBER_SCHEDULE = process.env.MAX_NUMBER_SCHEDULE;
 
@@ -35,6 +32,14 @@ let getTopDoctorHome = async (limit) => {
         nest: true,
         raw: true,
       });
+      if (user && user.length > 0) {
+        user.map((item) => {
+          if (item.image) {
+            item.image = Buffer.from(item.image).toString("base64");
+          }
+          return item;
+        });
+      }
       resolve({ errCode: 0, data: user });
     } catch (e) {
       reject(e);
