@@ -1,0 +1,14 @@
+{
+  "folders": [
+    {
+      "path": ".."
+    },
+    {
+      "path": "../../Reactjs_Test"
+    }
+  ],
+  "settings": {
+    "git.ignoreLimitWarning": true,
+    "liveServer.settings.multiRootWorkspaceName": "Reactjs_Test"
+  }
+}

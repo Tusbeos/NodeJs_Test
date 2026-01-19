@@ -63,35 +63,42 @@ let getAllDoctors = () => {
   });
 };
 
+let checkRequiredFields = (inputData) => {
+  let arrFields = [
+    "doctorId",
+    "contentHTML",
+    "contentMarkdown",
+    "action",
+    "selectedPrice",
+    "selectedPayment",
+    "selectedProvince",
+    "nameClinic",
+    "addressClinic",
+    "note",
+    "specialtyId",
+    // "clinicId",
+  ];
+  let isValid = true;
+  let element = "";
+  for (let i = 0; i < arrFields.length; i++) {
+    if (!inputData[arrFields[i]]) {
+      isValid = false;
+      element = arrFields[i];
+      break;
+    }
+  }
+  return {
+    isValid: isValid,
+    element: element,
+  };
+};
 let saveInfoDoctor = async (inputData) => {
   try {
-    let checkObj = {
-      doctorId: inputData.doctorId,
-      contentHTML: inputData.contentHTML,
-      contentMarkdown: inputData.contentMarkdown,
-      action: inputData.action,
-      selectedPrice: inputData.selectedPrice,
-      selectedPayment: inputData.selectedPayment,
-      selectedProvince: inputData.selectedProvince,
-      nameClinic: inputData.nameClinic,
-      addressClinic: inputData.addressClinic,
-      note: inputData.note,
-    };
-
-    let isValid = true;
-    let element = "";
-    for (const key in checkObj) {
-      if (!checkObj[key]) {
-        isValid = false;
-        element = key;
-        break;
-      }
-    }
-
-    if (!isValid) {
+    let checkObj = checkRequiredFields(inputData);
+    if (!checkObj.isValid) {
       return {
         errCode: 1,
-        errMessage: `Missing parameter: ${element}`,
+        errMessage: `Missing parameter: ${checkObj.element}`,
       };
     }
     if (inputData.action === "CREATE") {
@@ -127,7 +134,8 @@ let saveInfoDoctor = async (inputData) => {
       doctorInfo.nameClinic = inputData.nameClinic;
       doctorInfo.addressClinic = inputData.addressClinic;
       doctorInfo.note = inputData.note;
-
+      doctorInfo.specialtyId = inputData.specialtyId;
+      // doctorInfo.clinicId = inputData.clinicId;
       await doctorInfo.save();
     } else {
       await db.DoctorInfo.create({
@@ -138,6 +146,8 @@ let saveInfoDoctor = async (inputData) => {
         nameClinic: inputData.nameClinic,
         addressClinic: inputData.addressClinic,
         note: inputData.note,
+        specialtyId: inputData.specialtyId,
+        clinicId: inputData.clinicId,
       });
     }
 
