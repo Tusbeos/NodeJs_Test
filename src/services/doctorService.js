@@ -427,6 +427,85 @@ let getExtraInfoDoctorByIdService = (inputId) => {
     }
   });
 };
+
+let getDoctorSpecialtyByIdService = (inputData) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      if (!inputData.id) {
+        resolve({
+          errCode: 1,
+          errMessage: "Missing required parameters!",
+        });
+      } else {
+        let doctors = await db.User.findAll({
+          where: { roleId: "R2" },
+          attributes: {
+            exclude: ["password"],
+          },
+          include: [
+            {
+              model: db.Markdown,
+              attributes: ["description", "contentHTML", "contentMarkdown"],
+            },
+            {
+              model: db.AllCode,
+              as: "positionData",
+              attributes: ["value_En", "value_Vi"],
+            },
+            {
+              model: db.AllCode,
+              as: "roleData",
+              attributes: ["value_En", "value_Vi"],
+            },
+            {
+              model: db.DoctorInfo,
+              attributes: {
+                exclude: ["id", "doctorId", "createdAt", "updatedAt"],
+              },
+              where: { specialtyId: inputData.id },
+              required: true,
+              include: [
+                {
+                  model: db.AllCode,
+                  as: "priceTypeData",
+                  attributes: ["value_En", "value_Vi"],
+                },
+                {
+                  model: db.AllCode,
+                  as: "provinceTypeData",
+                  attributes: ["value_En", "value_Vi"],
+                },
+                {
+                  model: db.AllCode,
+                  as: "paymentTypeData",
+                  attributes: ["value_En", "value_Vi"],
+                },
+              ],
+            },
+          ],
+          raw: false,
+          nest: true,
+        });
+
+        if (doctors && doctors.length > 0) {
+          doctors = doctors.map((item) => {
+            if (item.image) {
+              item.image = Buffer.from(item.image).toString("base64");
+            }
+            return item;
+          });
+        }
+
+        resolve({
+          errCode: 0,
+          data: doctors,
+        });
+      }
+    } catch (e) {
+      reject(e);
+    }
+  });
+};
 export default {
   getTopDoctorHome,
   getAllDoctors,
@@ -437,4 +516,5 @@ export default {
   bulkCreateDoctorService,
   getListDoctorServices,
   getExtraInfoDoctorByIdService,
+  getDoctorSpecialtyByIdService: getDoctorSpecialtyByIdService,
 };

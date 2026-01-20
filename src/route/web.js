@@ -30,38 +30,42 @@ const initWebRouter = (app) => {
   router.post("/api/save-info-doctors", doctorController.saveInfoDoctor);
   router.get(
     `/api/get-detail-doctor-by-id`,
-    doctorController.getDetailDoctorById
+    doctorController.getDetailDoctorById,
   );
   router.post("/api/bulk-create-schedule", doctorController.bulkCreateSchedule);
   router.get(
     "/api/get-schedule-doctor-by-date",
-    doctorController.getScheduleByDate
+    doctorController.getScheduleByDate,
   );
   router.post(
     "/api/bulk-create-doctor-services",
-    doctorController.bulkCreateDoctorServices
+    doctorController.bulkCreateDoctorServices,
   );
   router.get(
     "/api/get-list-doctor-services",
-    doctorController.getListDoctorServices
+    doctorController.getListDoctorServices,
   );
   router.get(
     "/api/get-extra-info-doctor-by-id",
-    doctorController.getExtraInfoDoctorById
+    doctorController.getExtraInfoDoctorById,
   );
   router.post(
     "/api/patient-book-appointment",
-    patientController.patientBookAppointment
+    patientController.patientBookAppointment,
   );
   router.post(
     "/api/verify-book-appointment",
-    patientController.verifyBookAppointment
+    patientController.verifyBookAppointment,
   );
   router.post(
     "/api/create-new-specialty",
-    specialtyController.createNewSpecialty
+    specialtyController.createNewSpecialty,
   );
   router.get("/api/get-specialty", specialtyController.getAllSpecialty);
+  router.get(
+    "/api/get-doctor-specialty-by-id",
+    doctorController.getDoctorSpecialtyById,
+  );
   app.use("/", router);
 };
 
