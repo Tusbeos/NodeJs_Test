@@ -62,11 +62,17 @@ const initWebRouter = (app) => {
     "/api/create-new-specialty",
     specialtyController.createNewSpecialty,
   );
-  router.post("/api/create-new-clinic", clinicController.createNewClinic);
+
   router.get("/api/get-specialty", specialtyController.getAllSpecialty);
   router.get(
     "/api/get-doctor-specialty-by-id",
     doctorController.getDoctorSpecialtyById,
+  );
+  router.post("/api/create-new-clinic", clinicController.createNewClinic);
+  router.get("/api/get-all-clinic", clinicController.getAllClinic);
+  router.get(
+    "/api/get-detail-clinic-by-id",
+    clinicController.getDetailClinicById,
   );
   app.use("/", router);
 };
