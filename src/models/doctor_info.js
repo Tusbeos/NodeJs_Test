@@ -33,7 +33,6 @@ module.exports = (sequelize, DataTypes) => {
       addressClinic: DataTypes.STRING,
       nameClinic: DataTypes.STRING,
       note: DataTypes.STRING,
-      specialtyId: DataTypes.INTEGER,
       clinicId: DataTypes.INTEGER,
       count: DataTypes.INTEGER,
     },

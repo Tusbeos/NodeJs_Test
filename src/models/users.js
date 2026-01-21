@@ -27,6 +27,10 @@ module.exports = (sequelize, DataTypes) => {
       User.hasMany(models.Schedule, {
         foreignKey: "doctorId",
       });
+      User.hasMany(models.Doctor_Clinic_Specialty, {
+        foreignKey: "doctorId",
+        as: "doctorSpecialties",
+      });
     }
   }
   User.init(
@@ -48,7 +52,7 @@ module.exports = (sequelize, DataTypes) => {
       tableName: "users",
       freezeTableName: true,
       timestamps: true,
-    }
+    },
   );
   return User;
 };

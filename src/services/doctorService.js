@@ -1,4 +1,5 @@
 import _, { includes } from "lodash";
+const { Op } = require("sequelize");
 const db = require("../models");
 const MAX_NUMBER_SCHEDULE = process.env.MAX_NUMBER_SCHEDULE;
 
@@ -75,7 +76,6 @@ let checkRequiredFields = (inputData) => {
     "nameClinic",
     "addressClinic",
     "note",
-    "specialtyId",
     "clinicId",
   ];
   let isValid = true;
@@ -87,11 +87,22 @@ let checkRequiredFields = (inputData) => {
       break;
     }
   }
+  // specialtyIds bắt buộc (ưu tiên), nếu không có thì fallback specialtyId
+  if (isValid) {
+    const hasSpecialtyIds =
+      Array.isArray(inputData.specialtyIds) &&
+      inputData.specialtyIds.length > 0;
+    if (!hasSpecialtyIds && !inputData.specialtyId) {
+      isValid = false;
+      element = "specialtyIds";
+    }
+  }
   return {
     isValid: isValid,
     element: element,
   };
 };
+
 let saveInfoDoctor = async (inputData) => {
   try {
     let checkObj = checkRequiredFields(inputData);
@@ -127,6 +138,12 @@ let saveInfoDoctor = async (inputData) => {
       raw: false,
     });
 
+    const specialtyIds = Array.isArray(inputData.specialtyIds)
+      ? inputData.specialtyIds
+      : inputData.specialtyId
+        ? [inputData.specialtyId]
+        : [];
+
     if (doctorInfo) {
       doctorInfo.priceId = inputData.selectedPrice;
       doctorInfo.paymentId = inputData.selectedPayment;
@@ -134,7 +151,6 @@ let saveInfoDoctor = async (inputData) => {
       doctorInfo.nameClinic = inputData.nameClinic;
       doctorInfo.addressClinic = inputData.addressClinic;
       doctorInfo.note = inputData.note;
-      doctorInfo.specialtyId = inputData.specialtyId;
       doctorInfo.clinicId = inputData.clinicId;
       await doctorInfo.save();
     } else {
@@ -146,9 +162,21 @@ let saveInfoDoctor = async (inputData) => {
         nameClinic: inputData.nameClinic,
         addressClinic: inputData.addressClinic,
         note: inputData.note,
-        specialtyId: inputData.specialtyId,
         clinicId: inputData.clinicId,
       });
+    }
+
+    // Lưu many-to-many vào bảng doctor_clinic_specialty
+    await db.Doctor_Clinic_Specialty.destroy({
+      where: { doctorId: inputData.doctorId },
+    });
+    if (specialtyIds && specialtyIds.length > 0) {
+      const bulkData = specialtyIds.map((id) => ({
+        doctorId: inputData.doctorId,
+        clinicId: inputData.clinicId,
+        specialtyId: id,
+      }));
+      await db.Doctor_Clinic_Specialty.bulkCreate(bulkData);
     }
 
     return {
@@ -219,6 +247,15 @@ let getDetailDoctorByIdService = (inputId) => {
           nest: true,
           raw: false,
         });
+        const listSpecialty = await db.Doctor_Clinic_Specialty.findAll({
+          where: { doctorId: inputId },
+          attributes: ["specialtyId"],
+          raw: true,
+        });
+        const specialtyIds = listSpecialty.map((item) => item.specialtyId);
+        if (data && data.DoctorInfo) {
+          data.DoctorInfo.specialtyIds = specialtyIds;
+        }
         resolve({
           errCode: 0,
           data: data,
@@ -248,7 +285,6 @@ let bulkCreateSchedule = (data) => {
         return;
       } else {
         let schedule = data.arrSchedule;
-        // Chuẩn hoá date về timestamp và lưu dạng string để đồng bộ DB
         const normalizedDate = data.formattedDate
           ? new Date(Number(data.formattedDate)).setHours(0, 0, 0, 0)
           : schedule.length > 0
@@ -447,8 +483,17 @@ let getDoctorSpecialtyByIdService = (inputData) => {
           errMessage: "Missing required parameters!",
         });
       } else {
+        const doctorLinks = await db.Doctor_Clinic_Specialty.findAll({
+          where: { specialtyId: inputData.id },
+          attributes: ["doctorId"],
+          raw: true,
+        });
+        const doctorIds = [
+          ...new Set(doctorLinks.map((item) => item.doctorId)),
+        ];
+
         let doctors = await db.User.findAll({
-          where: { roleId: "R2" },
+          where: { roleId: "R2", id: { [Op.in]: doctorIds } },
           attributes: {
             exclude: ["password"],
           },
@@ -472,7 +517,6 @@ let getDoctorSpecialtyByIdService = (inputData) => {
               attributes: {
                 exclude: ["id", "doctorId", "createdAt", "updatedAt"],
               },
-              where: { specialtyId: inputData.id },
               required: true,
               include: [
                 {
