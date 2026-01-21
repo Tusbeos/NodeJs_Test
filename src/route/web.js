@@ -69,6 +69,10 @@ const initWebRouter = (app) => {
 
   router.get("/api/get-all-specialty", specialtyController.getAllSpecialty);
   router.get(
+    "/api/get-specialty-by-ids",
+    specialtyController.getSpecialtyByIds,
+  );
+  router.get(
     "/api/get-doctor-specialty-by-id",
     doctorController.getDoctorSpecialtyById,
   );

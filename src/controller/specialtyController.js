@@ -23,7 +23,21 @@ let getAllSpecialty = async (req, res) => {
     });
   }
 };
+
+let getSpecialtyByIds = async (req, res) => {
+  try {
+    const ids = req.query.ids;
+    let specialties = await specialtyService.getSpecialtyByIds(ids);
+    return res.status(200).json(specialties);
+  } catch (e) {
+    return res.status(200).json({
+      errCode: 1,
+      message: "Lỗi từ server",
+    });
+  }
+};
 module.exports = {
   createNewSpecialty: createNewSpecialty,
   getAllSpecialty: getAllSpecialty,
+  getSpecialtyByIds: getSpecialtyByIds,
 };

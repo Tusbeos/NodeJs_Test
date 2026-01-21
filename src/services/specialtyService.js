@@ -1,4 +1,5 @@
 const db = require("../models");
+const { Op } = require("sequelize");
 
 let createNewSpecialty = (data) => {
   return new Promise(async (resolve, reject) => {
@@ -54,7 +55,56 @@ let getAllSpecialty = () => {
   });
 };
 
+let getSpecialtyByIds = (ids) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      if (!ids) {
+        resolve({
+          errCode: 1,
+          message: "Thiếu danh sách ID chuyên khoa",
+        });
+        return;
+      }
+
+      const idArr = String(ids)
+        .split(",")
+        .map((item) => Number(item))
+        .filter((item) => item);
+
+      if (!idArr || idArr.length === 0) {
+        resolve({
+          errCode: 1,
+          message: "Danh sách ID không hợp lệ",
+        });
+        return;
+      }
+
+      let specialties = await db.Specialty.findAll({
+        where: { id: { [Op.in]: idArr } },
+      });
+
+      if (specialties && specialties.length > 0) {
+        specialties = specialties.map((item) => {
+          if (item.image) {
+            item.image = Buffer.from(item.image).toString("base64");
+          }
+          return item;
+        });
+      }
+
+      resolve({
+        errCode: 0,
+        message: "OK",
+        data: specialties || [],
+      });
+    } catch (e) {
+      reject(e);
+    }
+  });
+};
+
 module.exports = {
   createNewSpecialty: createNewSpecialty,
   getAllSpecialty: getAllSpecialty,
+  getSpecialtyByIds: getSpecialtyByIds,
 };
