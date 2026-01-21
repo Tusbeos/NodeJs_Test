@@ -87,12 +87,11 @@ let checkRequiredFields = (inputData) => {
       break;
     }
   }
-  // specialtyIds bắt buộc (ưu tiên), nếu không có thì fallback specialtyId
   if (isValid) {
     const hasSpecialtyIds =
       Array.isArray(inputData.specialtyIds) &&
       inputData.specialtyIds.length > 0;
-    if (!hasSpecialtyIds && !inputData.specialtyId) {
+    if (!hasSpecialtyIds) {
       isValid = false;
       element = "specialtyIds";
     }
@@ -140,9 +139,7 @@ let saveInfoDoctor = async (inputData) => {
 
     const specialtyIds = Array.isArray(inputData.specialtyIds)
       ? inputData.specialtyIds
-      : inputData.specialtyId
-        ? [inputData.specialtyId]
-        : [];
+      : [];
 
     if (doctorInfo) {
       doctorInfo.priceId = inputData.selectedPrice;
@@ -165,8 +162,6 @@ let saveInfoDoctor = async (inputData) => {
         clinicId: inputData.clinicId,
       });
     }
-
-    // Lưu many-to-many vào bảng doctor_clinic_specialty
     await db.Doctor_Clinic_Specialty.destroy({
       where: { doctorId: inputData.doctorId },
     });
@@ -253,20 +248,23 @@ let getDetailDoctorByIdService = (inputId) => {
           raw: true,
         });
         const specialtyIds = listSpecialty.map((item) => item.specialtyId);
-        if (data && data.DoctorInfo) {
-          data.DoctorInfo.specialtyIds = specialtyIds;
+
+        if (!data) {
+          data = {};
         }
-        resolve({
-          errCode: 0,
-          data: data,
-        });
+        if (!data.DoctorInfo) {
+          data.DoctorInfo = {};
+        }
+        data.DoctorInfo.specialtyIds = specialtyIds;
 
         if (data && data.image) {
           data.image = data.image.toString("base64");
         }
-        if (!data) {
-          data = {};
-        }
+
+        resolve({
+          errCode: 0,
+          data: data,
+        });
       }
     } catch (e) {
       reject(e);
@@ -474,6 +472,35 @@ let getExtraInfoDoctorByIdService = (inputId) => {
   });
 };
 
+let getSpecialtiesByDoctorIdService = (doctorId) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      if (!doctorId) {
+        resolve({
+          errCode: 1,
+          errMessage: "Missing required parameter!",
+        });
+        return;
+      }
+
+      const listSpecialty = await db.Doctor_Clinic_Specialty.findAll({
+        where: { doctorId },
+        attributes: ["specialtyId"],
+        raw: true,
+      });
+
+      const specialtyIds = listSpecialty.map((item) => item.specialtyId);
+
+      resolve({
+        errCode: 0,
+        data: specialtyIds,
+      });
+    } catch (e) {
+      reject(e);
+    }
+  });
+};
+
 let getDoctorSpecialtyByIdService = (inputData) => {
   return new Promise(async (resolve, reject) => {
     try {
@@ -570,5 +597,6 @@ export default {
   bulkCreateDoctorService,
   getListDoctorServices,
   getExtraInfoDoctorByIdService,
+  getSpecialtiesByDoctorIdService,
   getDoctorSpecialtyByIdService: getDoctorSpecialtyByIdService,
 };

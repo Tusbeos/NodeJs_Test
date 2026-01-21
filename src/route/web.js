@@ -50,6 +50,10 @@ const initWebRouter = (app) => {
     "/api/get-extra-info-doctor-by-id",
     doctorController.getExtraInfoDoctorById,
   );
+  router.get(
+    "/api/get-specialties-by-doctor-id",
+    doctorController.getSpecialtiesByDoctorId,
+  );
   router.post(
     "/api/patient-book-appointment",
     patientController.patientBookAppointment,
