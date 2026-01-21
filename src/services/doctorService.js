@@ -76,7 +76,7 @@ let checkRequiredFields = (inputData) => {
     "addressClinic",
     "note",
     "specialtyId",
-    // "clinicId",
+    "clinicId",
   ];
   let isValid = true;
   let element = "";
@@ -135,7 +135,7 @@ let saveInfoDoctor = async (inputData) => {
       doctorInfo.addressClinic = inputData.addressClinic;
       doctorInfo.note = inputData.note;
       doctorInfo.specialtyId = inputData.specialtyId;
-      // doctorInfo.clinicId = inputData.clinicId;
+      doctorInfo.clinicId = inputData.clinicId;
       await doctorInfo.save();
     } else {
       await db.DoctorInfo.create({
@@ -248,14 +248,21 @@ let bulkCreateSchedule = (data) => {
         return;
       } else {
         let schedule = data.arrSchedule;
+        // Chuẩn hoá date về timestamp và lưu dạng string để đồng bộ DB
+        const normalizedDate = data.formattedDate
+          ? new Date(Number(data.formattedDate)).setHours(0, 0, 0, 0)
+          : schedule.length > 0
+            ? new Date(Number(schedule[0].date)).setHours(0, 0, 0, 0)
+            : "";
+
         if (schedule && schedule.length > 0) {
           schedule = schedule.map((item) => {
             item.maxNumber = MAX_NUMBER_SCHEDULE;
-            item.date = new Date(Number(item.date)).getTime();
+            item.date = String(normalizedDate);
             return item;
           });
         }
-        let dateToQuery = schedule.length > 0 ? schedule[0].date : "";
+        let dateToQuery = normalizedDate ? String(normalizedDate) : "";
         let existing = await db.Schedule.findAll({
           where: {
             doctorId: data.doctorId,
@@ -293,10 +300,13 @@ let getScheduleByDate = (doctorId, date) => {
         return;
       }
 
+      // Chuẩn hoá date về cùng định dạng lưu DB (string timestamp)
+      let normalizedDate = String(new Date(Number(date)).setHours(0, 0, 0, 0));
+
       let schedules = await db.Schedule.findAll({
         where: {
           doctorId: doctorId,
-          date: date,
+          date: normalizedDate,
         },
         include: [
           {

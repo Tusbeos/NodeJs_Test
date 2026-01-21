@@ -63,7 +63,7 @@ const initWebRouter = (app) => {
     specialtyController.createNewSpecialty,
   );
 
-  router.get("/api/get-specialty", specialtyController.getAllSpecialty);
+  router.get("/api/get-all-specialty", specialtyController.getAllSpecialty);
   router.get(
     "/api/get-doctor-specialty-by-id",
     doctorController.getDoctorSpecialtyById,
