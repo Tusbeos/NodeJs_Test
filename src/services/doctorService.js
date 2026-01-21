@@ -587,6 +587,42 @@ let getDoctorSpecialtyByIdService = (inputData) => {
     }
   });
 };
+
+let getDoctorsByClinicIdService = (clinicId) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      if (!clinicId) {
+        resolve({
+          errCode: 1,
+          errMessage: "Missing required parameter!",
+        });
+        return;
+      }
+
+      const doctorLinks = await db.Doctor_Clinic_Specialty.findAll({
+        where: { clinicId },
+        attributes: ["doctorId"],
+        raw: true,
+      });
+
+      const doctorIds = [...new Set(doctorLinks.map((item) => item.doctorId))];
+
+      const clinicInfo = await db.Clinic.findOne({
+        where: { id: clinicId },
+        attributes: ["id", "name", "address"],
+        raw: true,
+      });
+
+      resolve({
+        errCode: 0,
+        data: doctorIds,
+        clinic: clinicInfo || null,
+      });
+    } catch (e) {
+      reject(e);
+    }
+  });
+};
 export default {
   getTopDoctorHome,
   getAllDoctors,
@@ -599,4 +635,5 @@ export default {
   getExtraInfoDoctorByIdService,
   getSpecialtiesByDoctorIdService,
   getDoctorSpecialtyByIdService: getDoctorSpecialtyByIdService,
+  getDoctorsByClinicIdService,
 };

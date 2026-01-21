@@ -103,8 +103,90 @@ let getSpecialtyByIds = (ids) => {
   });
 };
 
+let updateSpecialty = (data) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      if (!data || !data.id) {
+        resolve({
+          errCode: 1,
+          errMessage: "Missing required parameters!",
+        });
+        return;
+      }
+
+      const specialty = await db.Specialty.findOne({
+        where: { id: data.id },
+        raw: false,
+      });
+
+      if (!specialty) {
+        resolve({
+          errCode: 2,
+          errMessage: "Specialty not found",
+        });
+        return;
+      }
+
+      if (data.name) specialty.name = data.name;
+      if (data.descriptionHTML)
+        specialty.descriptionHTML = data.descriptionHTML;
+      if (data.descriptionMarkdown)
+        specialty.descriptionMarkdown = data.descriptionMarkdown;
+      if (data.imageBase64) specialty.image = data.imageBase64;
+
+      await specialty.save();
+
+      resolve({
+        errCode: 0,
+        errMessage: "Update specialty successfully",
+      });
+    } catch (e) {
+      reject(e);
+    }
+  });
+};
+
+let deleteSpecialty = (specialtyId) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      if (!specialtyId) {
+        resolve({
+          errCode: 1,
+          errMessage: "Missing required parameters!",
+        });
+        return;
+      }
+
+      await db.Doctor_Clinic_Specialty.destroy({
+        where: { specialtyId },
+      });
+
+      const result = await db.Specialty.destroy({
+        where: { id: specialtyId },
+      });
+
+      if (!result) {
+        resolve({
+          errCode: 2,
+          errMessage: "Specialty not found",
+        });
+        return;
+      }
+
+      resolve({
+        errCode: 0,
+        errMessage: "Delete specialty successfully",
+      });
+    } catch (e) {
+      reject(e);
+    }
+  });
+};
+
 module.exports = {
   createNewSpecialty: createNewSpecialty,
   getAllSpecialty: getAllSpecialty,
   getSpecialtyByIds: getSpecialtyByIds,
+  updateSpecialty: updateSpecialty,
+  deleteSpecialty: deleteSpecialty,
 };

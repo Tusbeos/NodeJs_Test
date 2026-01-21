@@ -66,6 +66,8 @@ const initWebRouter = (app) => {
     "/api/create-new-specialty",
     specialtyController.createNewSpecialty,
   );
+  router.put("/api/update-specialty", specialtyController.updateSpecialty);
+  router.delete("/api/delete-specialty", specialtyController.deleteSpecialty);
 
   router.get("/api/get-all-specialty", specialtyController.getAllSpecialty);
   router.get(
@@ -76,7 +78,13 @@ const initWebRouter = (app) => {
     "/api/get-doctor-specialty-by-id",
     doctorController.getDoctorSpecialtyById,
   );
+  router.get(
+    "/api/get-doctors-by-clinic-id",
+    doctorController.getDoctorsByClinicId,
+  );
   router.post("/api/create-new-clinic", clinicController.createNewClinic);
+  router.put("/api/update-clinic", clinicController.updateClinic);
+  router.delete("/api/delete-clinic", clinicController.deleteClinic);
   router.get("/api/get-all-clinic", clinicController.getAllClinic);
   router.get(
     "/api/get-detail-clinic-by-id",
