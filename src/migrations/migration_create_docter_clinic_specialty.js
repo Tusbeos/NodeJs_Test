@@ -3,7 +3,6 @@
 module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.createTable("doctor_clinic_specialty", {
-      // giữ nguyên tên bảng
       id: {
         allowNull: false,
         autoIncrement: true,

@@ -29,6 +29,16 @@ let getTopDoctorHome = async (limit) => {
             as: "roleData",
             attributes: ["value_En", "value_Vi"],
           },
+          {
+            model: db.DoctorInfo,
+            attributes: ["count"],
+            where: {
+              count: {
+                [Op.gt]: 7,
+              },
+            },
+            required: true,
+          },
         ],
         nest: true,
         raw: true,
@@ -334,7 +344,6 @@ let getScheduleByDate = (doctorId, date) => {
         return;
       }
 
-      // Chuẩn hoá date về cùng định dạng lưu DB (string timestamp)
       let normalizedDate = String(new Date(Number(date)).setHours(0, 0, 0, 0));
 
       let schedules = await db.Schedule.findAll({
