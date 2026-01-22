@@ -25,6 +25,16 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: "paymentId",
         as: "paymentTypeData",
       });
+      // AllCode cho trạng thái Booking
+      AllCode.hasMany(models.Booking, {
+        foreignKey: "statusId",
+        as: "statusData",
+      });
+      // AllCode cho kiểu thời gian Booking
+      AllCode.hasMany(models.Booking, {
+        foreignKey: "timeType",
+        as: "bookingTimeTypeData",
+      });
     }
   }
   AllCode.init(
@@ -40,7 +50,7 @@ module.exports = (sequelize, DataTypes) => {
       tableName: "allCodes",
       freezeTableName: true,
       timestamps: false,
-    }
+    },
   );
   return AllCode;
 };

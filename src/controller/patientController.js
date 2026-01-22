@@ -24,7 +24,23 @@ let verifyBookAppointment = async (req, res) => {
     });
   }
 };
+
+let getPatientsByDoctor = async (req, res) => {
+  try {
+    let doctorId = req.query.doctorId;
+    let date = req.query.date;
+    let info = await patientService.getPatientsByDoctorService(doctorId, date);
+    return res.status(200).json(info);
+  } catch (e) {
+    console.log(e);
+    return res.status(200).json({
+      errCode: -1,
+      errMessage: "Error from server",
+    });
+  }
+};
 module.exports = {
   patientBookAppointment: patientBookAppointment,
   verifyBookAppointment: verifyBookAppointment,
+  getPatientsByDoctor: getPatientsByDoctor,
 };

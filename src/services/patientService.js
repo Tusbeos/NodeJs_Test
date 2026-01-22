@@ -11,12 +11,14 @@ let buildUrlEmail = (doctorId, token) => {
 let patientBookAppointmentService = async (data) => {
   return new Promise(async (resolve, reject) => {
     try {
+      const hasFullName = !!data.fullName;
+      const hasSplitName = !!data.firstName && !!data.lastName;
       if (
         !data.email ||
         !data.doctorId ||
         !data.date ||
         !data.timeType ||
-        !data.fullName ||
+        (!hasFullName && !hasSplitName) ||
         !data.timeString ||
         !data.doctorName
       ) {
@@ -26,10 +28,13 @@ let patientBookAppointmentService = async (data) => {
         });
       } else {
         let token = uuidv4();
+        const patientName = hasFullName
+          ? data.fullName
+          : `${data.lastName || ""} ${data.firstName || ""}`.trim();
 
         await emailService.sendSimpleEmail({
           receiverEmail: data.email,
-          patientName: data.fullName,
+          patientName: patientName,
           time: data.timeString,
           doctorName: data.doctorName,
           language: data.language,
@@ -41,12 +46,27 @@ let patientBookAppointmentService = async (data) => {
           defaults: {
             email: data.email,
             roleId: "R3",
+            firstName: data.firstName || null,
+            lastName: data.lastName || null,
           },
         });
 
         if (user && user[0]) {
+          // Cập nhật thêm thông tin bệnh nhân nếu có
+          if (data.firstName) user[0].firstName = data.firstName;
+          if (data.lastName) user[0].lastName = data.lastName;
+          if (data.gender) user[0].gender = data.gender;
+          if (data.phoneNumber) user[0].phoneNumber = data.phoneNumber;
+          if (data.address) user[0].address = data.address;
+          await user[0].save();
+
           await db.Booking.findOrCreate({
-            where: { patientId: user[0].id },
+            where: {
+              patientId: user[0].id,
+              doctorId: data.doctorId,
+              date: data.date,
+              timeType: data.timeType,
+            },
             defaults: {
               statusId: "S1",
               doctorId: data.doctorId,
@@ -54,6 +74,8 @@ let patientBookAppointmentService = async (data) => {
               date: data.date,
               timeType: data.timeType,
               token: token,
+              birthday: data.birthday || null,
+              reason: data.reason || null,
             },
           });
         }
@@ -106,7 +128,51 @@ let verifyBookAppointment = async (data) => {
   });
 };
 
+let getPatientsByDoctorService = (doctorId, date) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      if (!doctorId || !date) {
+        resolve({
+          errCode: 1,
+          errMessage: "Missing Parameter",
+        });
+        return;
+      }
+
+      const bookings = await db.Booking.findAll({
+        where: {
+          doctorId: doctorId,
+          date: date,
+        },
+        include: [
+          {
+            model: db.User,
+            as: "patientData",
+            attributes: ["email", "firstName", "lastName", "phoneNumber"],
+          },
+          {
+            model: db.AllCode,
+            as: "bookingTimeTypeData",
+            attributes: ["value_Vi", "value_En"],
+          },
+        ],
+        order: [["createdAt", "DESC"]],
+        raw: false,
+        nest: true,
+      });
+
+      resolve({
+        errCode: 0,
+        data: bookings || [],
+      });
+    } catch (e) {
+      reject(e);
+    }
+  });
+};
+
 module.exports = {
   patientBookAppointmentService: patientBookAppointmentService,
   verifyBookAppointment: verifyBookAppointment,
+  getPatientsByDoctorService: getPatientsByDoctorService,
 };
