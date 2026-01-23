@@ -79,12 +79,17 @@ let getDetailClinicById = (clinicId) => {
   });
 };
 
-let getAllClinic = () => {
+let getAllClinic = (limit) => {
   return new Promise(async (resolve, reject) => {
     try {
-      let clinics = await db.Clinic.findAll({
+      const parsedLimit = Number(limit);
+      const queryOptions = {
         attributes: ["id", "name", "image", "address"],
-      });
+      };
+      if (!isNaN(parsedLimit) && parsedLimit > 0) {
+        queryOptions.limit = parsedLimit;
+      }
+      let clinics = await db.Clinic.findAll(queryOptions);
 
       if (clinics && clinics.length > 0) {
         clinics.map((item) => {

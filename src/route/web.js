@@ -67,6 +67,10 @@ const initWebRouter = (app) => {
     patientController.getPatientsByDoctor,
   );
   router.post(
+    "/api/confirm-patient-booking",
+    patientController.confirmPatientBooking,
+  );
+  router.post(
     "/api/create-new-specialty",
     specialtyController.createNewSpecialty,
   );

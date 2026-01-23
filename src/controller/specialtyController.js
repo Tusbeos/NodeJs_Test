@@ -14,7 +14,7 @@ let createNewSpecialty = async (req, res) => {
 
 let getAllSpecialty = async (req, res) => {
   try {
-    let specialties = await specialtyService.getAllSpecialty();
+    let specialties = await specialtyService.getAllSpecialty(req.query.limit);
     return res.status(200).json(specialties);
   } catch (e) {
     return res.status(500).json({

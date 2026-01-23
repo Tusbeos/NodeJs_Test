@@ -171,8 +171,54 @@ let getPatientsByDoctorService = (doctorId, date) => {
   });
 };
 
+let confirmPatientBookingService = (data) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      if (!data || !data.bookingId) {
+        resolve({
+          errCode: 1,
+          errMessage: "Missing Parameter",
+        });
+        return;
+      }
+
+      let booking = await db.Booking.findOne({
+        where: { id: data.bookingId },
+        raw: false,
+      });
+
+      if (!booking) {
+        resolve({
+          errCode: 2,
+          errMessage: "Booking not found",
+        });
+        return;
+      }
+
+      if (data.doctorId && +booking.doctorId !== +data.doctorId) {
+        resolve({
+          errCode: 3,
+          errMessage: "Invalid doctor",
+        });
+        return;
+      }
+
+      booking.statusId = data.statusId || "S3";
+      await booking.save();
+
+      resolve({
+        errCode: 0,
+        errMessage: "OK",
+      });
+    } catch (e) {
+      reject(e);
+    }
+  });
+};
+
 module.exports = {
   patientBookAppointmentService: patientBookAppointmentService,
   verifyBookAppointment: verifyBookAppointment,
   getPatientsByDoctorService: getPatientsByDoctorService,
+  confirmPatientBookingService: confirmPatientBookingService,
 };

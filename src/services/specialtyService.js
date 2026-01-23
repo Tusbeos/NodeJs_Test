@@ -32,10 +32,15 @@ let createNewSpecialty = (data) => {
   });
 };
 
-let getAllSpecialty = () => {
+let getAllSpecialty = (limit) => {
   return new Promise(async (resolve, reject) => {
     try {
-      let specialties = await db.Specialty.findAll();
+      const parsedLimit = Number(limit);
+      const queryOptions = {};
+      if (!isNaN(parsedLimit) && parsedLimit > 0) {
+        queryOptions.limit = parsedLimit;
+      }
+      let specialties = await db.Specialty.findAll(queryOptions);
       if (specialties && specialties.length > 0) {
         specialties.map((item) => {
           if (item.image) {
