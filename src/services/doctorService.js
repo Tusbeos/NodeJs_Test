@@ -285,7 +285,12 @@ let getDetailDoctorByIdService = (inputId) => {
 let bulkCreateSchedule = (data) => {
   return new Promise(async (resolve, reject) => {
     try {
-      if (!data.arrSchedule || !data.doctorId || !data.formattedDate) {
+      if (
+        !data ||
+        !data.doctorId ||
+        !data.formattedDate ||
+        !Array.isArray(data.arrSchedule)
+      ) {
         resolve({
           errCode: 1,
           errMessage: "Missing required parameter!",
@@ -299,6 +304,45 @@ let bulkCreateSchedule = (data) => {
             ? new Date(Number(schedule[0].date)).setHours(0, 0, 0, 0)
             : "";
 
+        const dateToQuery = normalizedDate ? String(normalizedDate) : "";
+
+        // Xóa các khung giờ đã có trong DB nhưng không còn nằm trong payload
+        const incomingTimeTypes = new Set(
+          (schedule || [])
+            .map((item) => item.timeType)
+            .filter((timeType) => !!timeType),
+        );
+
+        if (!dateToQuery) {
+          resolve({
+            errCode: 1,
+            errMessage: "Missing required parameter!",
+          });
+          return;
+        }
+
+        if (incomingTimeTypes.size === 0) {
+          await db.Schedule.destroy({
+            where: {
+              doctorId: data.doctorId,
+              date: dateToQuery,
+            },
+          });
+          resolve({
+            errCode: 0,
+            errMessage: "OK",
+          });
+          return;
+        }
+
+        await db.Schedule.destroy({
+          where: {
+            doctorId: data.doctorId,
+            date: dateToQuery,
+            timeType: { [Op.notIn]: Array.from(incomingTimeTypes) },
+          },
+        });
+
         if (schedule && schedule.length > 0) {
           schedule = schedule.map((item) => {
             item.maxNumber = MAX_NUMBER_SCHEDULE;
@@ -306,7 +350,7 @@ let bulkCreateSchedule = (data) => {
             return item;
           });
         }
-        let dateToQuery = normalizedDate ? String(normalizedDate) : "";
+
         let existing = await db.Schedule.findAll({
           where: {
             doctorId: data.doctorId,
@@ -362,6 +406,12 @@ let getScheduleByDate = (doctorId, date) => {
         nest: true,
       });
       if (!schedules) schedules = [];
+      schedules = schedules.map((item) => {
+        return {
+          ...item.toJSON(),
+          isSelected: true,
+        };
+      });
       resolve({
         errCode: 0,
         data: schedules,
