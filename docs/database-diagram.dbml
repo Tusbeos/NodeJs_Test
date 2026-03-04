@@ -1,0 +1,257 @@
+// ==================================================
+// Medical Appointment Booking System - Full Database Schema
+// Hệ thống đặt lịch khám bệnh - Sơ đồ Database đầy đủ
+// ==================================================
+
+// Bảng Users - Người dùng (Bác sĩ, Bệnh nhân, Admin)
+Table users {
+  id int [pk, increment, note: 'User ID - Primary Key']
+  email varchar [not null, unique, note: 'Email đăng nhập']
+  password varchar [not null, note: 'Password đã hash']
+  firstName varchar [note: 'Tên']
+  lastName varchar [note: 'Họ']
+  address varchar [note: 'Địa chỉ']
+  phoneNumber text [note: 'Số điện thoại']
+  gender varchar [note: 'Giới tính (M/F) - Ref to AllCode']
+  image longblob [note: 'Ảnh đại diện']
+  roleId varchar [note: 'Vai trò (R1=Admin, R2=Doctor, R3=Patient) - Ref to AllCode']
+  positionId varchar [note: 'Chức vụ (P1=Giáo sư, P2=Thạc sĩ,...) - Ref to AllCode']
+  createdAt timestamp [default: `now()`]
+  updatedAt timestamp [default: `now()`]
+  
+  Note: 'Bảng User: Chứa thông tin người dùng (Bác sĩ, Bệnh nhân, Admin)'
+}
+
+// Bảng AllCode - Từ điển dữ liệu chung
+Table allCodes {
+  id int [pk, increment]
+  keyMap varchar [not null, note: 'Mã khóa (VD: PRICE1, TIME1, ROLE1)']
+  type varchar [not null, note: 'Loại dữ liệu (PRICE, TIME, ROLE, GENDER, POSITION, STATUS, PAYMENT, PROVINCE)']
+  value_En varchar [note: 'Giá trị tiếng Anh']
+  value_Vi varchar [note: 'Giá trị tiếng Việt']
+  
+  Indexes {
+    (keyMap, type) [unique]
+  }
+  
+  Note: 'Bảng AllCode: Bảng từ điển chung cho các giá trị cố định (giá, thời gian, vai trò, trạng thái,...)'
+}
+
+// Bảng Doctor Info - Thông tin chi tiết bác sĩ
+Table doctor_infos {
+  id int [pk, increment]
+  doctorId int [not null, unique, note: 'Ref to users.id']
+  priceId varchar [note: 'Giá khám (PRICE1, PRICE2,...) - Ref to AllCode']
+  provinceId varchar [note: 'Tỉnh/Thành phố - Ref to AllCode']
+  paymentId varchar [note: 'Phương thức thanh toán - Ref to AllCode']
+  addressClinic varchar [note: 'Địa chỉ phòng khám']
+  nameClinic varchar [note: 'Tên phòng khám']
+  note varchar [note: 'Ghi chú']
+  clinicId int [note: 'Ref to clinics.id (Nếu bác sĩ thuộc phòng khám)']
+  count int [default: 0, note: 'Số lượt khám']
+  createdAt timestamp [default: `now()`]
+  updatedAt timestamp [default: `now()`]
+  
+  Note: 'Bảng Doctor Info: Thông tin chi tiết của Bác sĩ (giá, địa chỉ, phòng khám,...)'
+}
+
+// Bảng Doctor Services - Dịch vụ của bác sĩ
+Table doctor_services {
+  id int [pk, increment]
+  doctorId int [not null, note: 'Ref to users.id']
+  nameVi varchar [note: 'Tên dịch vụ tiếng Việt']
+  nameEn varchar [note: 'Tên dịch vụ tiếng Anh']
+  price varchar [note: 'Giá dịch vụ']
+  descriptionVi text [note: 'Mô tả tiếng Việt']
+  descriptionEn text [note: 'Mô tả tiếng Anh']
+  createdAt timestamp [default: `now()`]
+  updatedAt timestamp [default: `now()`]
+  
+  Note: 'Bảng Doctor Services: Các dịch vụ mà bác sĩ cung cấp'
+}
+
+// Bảng Specialties - Chuyên khoa
+Table specialties {
+  id int [pk, increment]
+  name varchar [not null, note: 'Tên chuyên khoa (Tim mạch, Da liễu,...)']
+  image longblob [note: 'Hình ảnh chuyên khoa']
+  descriptionHTML text [note: 'Mô tả HTML']
+  descriptionMarkdown text [note: 'Mô tả Markdown']
+  
+  Note: 'Bảng Specialties: Các chuyên khoa y tế (Cardiology, Dermatology,...)'
+}
+
+// Bảng Clinics - Phòng khám
+Table clinics {
+  id int [pk, increment]
+  name varchar [not null, note: 'Tên phòng khám']
+  address varchar [note: 'Địa chỉ phòng khám']
+  image longblob [note: 'Logo phòng khám']
+  imageCover longblob [note: 'Ảnh bìa phòng khám']
+  descriptionHTML longtext [note: 'Mô tả HTML']
+  descriptionMarkdown longtext [note: 'Mô tả Markdown']
+  createdAt timestamp [default: `now()`]
+  updatedAt timestamp [default: `now()`]
+  
+  Note: 'Bảng Clinics: Thông tin các phòng khám/bệnh viện'
+}
+
+// Bảng liên kết Doctor - Clinic - Specialty (N-N-N)
+Table doctor_clinic_specialty {
+  id int [pk, increment]
+  doctorId int [not null, note: 'Ref to users.id']
+  clinicId int [note: 'Ref to clinics.id']
+  specialtyId int [note: 'Ref to specialties.id']
+  createdAt timestamp [default: `now()`]
+  updatedAt timestamp [default: `now()`]
+  
+  Indexes {
+    (doctorId, clinicId, specialtyId) [unique]
+  }
+  
+  Note: 'Bảng liên kết N-N-N: Bác sĩ làm việc tại phòng khám nào, chuyên khoa gì'
+}
+
+// Bảng Schedules - Lịch làm việc của bác sĩ
+Table schedules {
+  id int [pk, increment]
+  currentNumber int [default: 0, note: 'Số lượng đã đặt']
+  maxNumber int [default: 10, note: 'Số lượng tối đa']
+  date varchar [not null, note: 'Ngày khám (VD: 20240204)']
+  timeType varchar [not null, note: 'Khung giờ (T1=8h-9h, T2=9h-10h,...) - Ref to AllCode']
+  doctorId int [not null, note: 'Ref to users.id']
+  createdAt timestamp [default: `now()`]
+  updatedAt timestamp [default: `now()`]
+  
+  Indexes {
+    (doctorId, date, timeType) [unique]
+  }
+  
+  Note: 'Bảng Schedules: Lịch làm việc của Bác sĩ (Ngày nào, khung giờ nào, còn slot không)'
+}
+
+// Bảng Bookings - Lịch đặt khám của bệnh nhân
+Table bookings {
+  id int [pk, increment]
+  statusId varchar [not null, note: 'Trạng thái (S1=Mới, S2=Đã xác nhận, S3=Hoàn thành, S4=Hủy) - Ref to AllCode']
+  doctorId int [not null, note: 'Bác sĩ được đặt - Ref to users.id']
+  patientId int [not null, note: 'Bệnh nhân đặt lịch - Ref to users.id']
+  date varchar [not null, note: 'Ngày khám (VD: 20240204)']
+  timeType varchar [not null, note: 'Khung giờ - Ref to AllCode']
+  token varchar [note: 'Token xác thực email']
+  birthday varchar [note: 'Ngày sinh bệnh nhân']
+  reason text [note: 'Lý do khám']
+  createdAt timestamp [default: `now()`]
+  updatedAt timestamp [default: `now()`]
+  
+  Note: 'Bảng Bookings: Lịch hẹn đặt khám của bệnh nhân'
+}
+
+// Bảng Markdown - Nội dung chi tiết
+Table markdown {
+  id int [pk, increment]
+  contentHTML longtext [note: 'Nội dung HTML']
+  contentMarkdown longtext [note: 'Nội dung Markdown']
+  description longtext [note: 'Mô tả ngắn']
+  doctorId int [note: 'Ref to users.id - Thông tin chi tiết của Bác sĩ']
+  specialtyId int [note: 'Ref to specialties.id - Mô tả chuyên khoa']
+  clinicId int [note: 'Ref to clinics.id - Mô tả phòng khám']
+  createdAt timestamp [default: `now()`]
+  updatedAt timestamp [default: `now()`]
+  
+  Note: 'Bảng Markdown: Lưu nội dung chi tiết dạng Markdown (cho Doctor, Specialty, Clinic)'
+}
+
+// Bảng Histories - Lịch sử khám bệnh
+Table histories {
+  id int [pk, increment]
+  address varchar [note: 'Địa chỉ']
+  description text [note: 'Mô tả lịch sử khám']
+  image int [note: 'ID hình ảnh']
+  files text [note: 'Danh sách file đính kèm']
+  createdAt timestamp [default: `now()`]
+  updatedAt timestamp [default: `now()`]
+  
+  Note: 'Bảng History: Lịch sử khám bệnh (Chưa có quan hệ rõ ràng, có thể liên kết với Booking sau này)'
+}
+
+// ==================================================
+// QUAN HỆ GIỮA CÁC BẢNG (RELATIONSHIPS)
+// ==================================================
+
+// Users - AllCode Relationships
+Ref: users.gender > allCodes.keyMap
+Ref: users.roleId > allCodes.keyMap
+Ref: users.positionId > allCodes.keyMap
+
+// Doctor Info Relationships
+Ref: doctor_infos.doctorId - users.id
+Ref: doctor_infos.priceId > allCodes.keyMap
+Ref: doctor_infos.provinceId > allCodes.keyMap
+Ref: doctor_infos.paymentId > allCodes.keyMap
+Ref: doctor_infos.clinicId > clinics.id
+
+// Doctor Services Relationships
+Ref: doctor_services.doctorId > users.id
+
+// Doctor-Clinic-Specialty Relationships
+Ref: doctor_clinic_specialty.doctorId > users.id
+Ref: doctor_clinic_specialty.clinicId > clinics.id
+Ref: doctor_clinic_specialty.specialtyId > specialties.id
+
+// Schedules Relationships
+Ref: schedules.doctorId > users.id
+Ref: schedules.timeType > allCodes.keyMap
+
+// Bookings Relationships
+Ref: bookings.doctorId > users.id
+Ref: bookings.patientId > users.id
+Ref: bookings.statusId > allCodes.keyMap
+Ref: bookings.timeType > allCodes.keyMap
+
+// Markdown Relationships
+Ref: markdown.doctorId > users.id
+Ref: markdown.specialtyId > specialties.id
+Ref: markdown.clinicId > clinics.id
+
+// ==================================================
+// HƯỚNG DẪN SỬ DỤNG
+// ==================================================
+
+/* 
+CÁCH SỬ DỤNG:
+1. Copy toàn bộ code trong file này
+2. Truy cập: https://dbdiagram.io/d
+3. Paste vào Editor bên trái
+4. Diagram đầy đủ sẽ tự động render bên phải với tất cả các bảng và quan hệ
+
+TỔNG QUAN DATABASE (10 bảng):
+├── Core Tables (Bảng cốt lõi)
+│   ├── users (Người dùng: Bác sĩ, Bệnh nhân, Admin)
+│   └── allCodes (Từ điển dữ liệu chung)
+│
+├── Doctor Related (Liên quan Bác sĩ)
+│   ├── doctor_infos (Thông tin chi tiết bác sĩ)
+│   ├── doctor_services (Dịch vụ của bác sĩ)
+│   └── doctor_clinic_specialty (Liên kết N-N-N)
+│
+├── Organization (Tổ chức)
+│   ├── specialties (Chuyên khoa)
+│   └── clinics (Phòng khám)
+│
+├── Appointment (Đặt lịch)
+│   ├── schedules (Lịch làm việc bác sĩ)
+│   └── bookings (Lịch đặt khám của bệnh nhân)
+│
+└── Content (Nội dung)
+    ├── markdown (Nội dung chi tiết)
+    └── histories (Lịch sử khám)
+
+QUAN HỆ CHÍNH:
+✓ users <-> allCodes (gender, roleId, positionId)
+✓ users <-> doctor_infos (1-1)
+✓ users <-> schedules (1-N)
+✓ users <-> bookings (1-N cho cả doctor và patient)
+✓ doctor_clinic_specialty (N-N-N linking table)
+✓ AllCode được sử dụng làm Foreign Key cho nhiều bảng
+*/

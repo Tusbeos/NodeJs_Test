@@ -1,0 +1,733 @@
+import _ from "lodash";
+import { Op } from "sequelize";
+import db from "../models/index";
+
+const MAX_NUMBER_SCHEDULE = process.env.MAX_NUMBER_SCHEDULE;
+
+// Lấy danh sách bác sĩ nổi bật
+const getTopDoctorHome = async (limit: number): Promise<any> => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      let user = await db.User.findAll({
+        limit: limit,
+        order: [["createdAt", "DESC"]],
+        where: { roleId: "R2" },
+        attributes: {
+          exclude: ["password"],
+        },
+        include: [
+          {
+            model: db.AllCode,
+            as: "positionData",
+            attributes: ["value_En", "value_Vi"],
+          },
+          {
+            model: db.AllCode,
+            as: "genderData",
+            attributes: ["value_En", "value_Vi"],
+          },
+          {
+            model: db.AllCode,
+            as: "roleData",
+            attributes: ["value_En", "value_Vi"],
+          },
+          {
+            model: db.DoctorInfo,
+            attributes: ["count"],
+            where: {
+              count: {
+                [Op.gt]: 7,
+              },
+            },
+            required: true,
+          },
+        ],
+        nest: true,
+        raw: true,
+      });
+      if (user && user.length > 0) {
+        user.map((item: any) => {
+          if (item.image) {
+            item.image = Buffer.from(item.image).toString("base64");
+          }
+          return item;
+        });
+      }
+      resolve({ errCode: 0, data: user });
+    } catch (e) {
+      reject(e);
+    }
+  });
+};
+
+// Lấy tất cả bác sĩ
+const getAllDoctors = (): Promise<any> => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const doctors = await db.User.findAll({
+        where: { roleId: "R2" },
+        attributes: {
+          exclude: ["password", "image"],
+        },
+      });
+      resolve({ errCode: 0, data: doctors });
+    } catch (e) {
+      reject(e);
+    }
+  });
+};
+
+// Kiểm tra các field bắt buộc khi lưu thông tin bác sĩ
+const checkRequiredFields = (
+  inputData: any,
+): { isValid: boolean; element: string } => {
+  const arrFields = [
+    "doctorId",
+    "contentHTML",
+    "contentMarkdown",
+    "action",
+    "selectedPrice",
+    "selectedPayment",
+    "selectedProvince",
+    "nameClinic",
+    "addressClinic",
+    "note",
+    "clinicId",
+  ];
+  let isValid = true;
+  let element = "";
+  for (let i = 0; i < arrFields.length; i++) {
+    if (!inputData[arrFields[i]]) {
+      isValid = false;
+      element = arrFields[i];
+      break;
+    }
+  }
+  if (isValid) {
+    const hasSpecialtyIds =
+      Array.isArray(inputData.specialtyIds) &&
+      inputData.specialtyIds.length > 0;
+    if (!hasSpecialtyIds) {
+      isValid = false;
+      element = "specialtyIds";
+    }
+  }
+  return {
+    isValid: isValid,
+    element: element,
+  };
+};
+
+// Lưu thông tin bác sĩ (tạo mới hoặc cập nhật)
+const saveInfoDoctor = async (inputData: any): Promise<any> => {
+  try {
+    const checkObj = checkRequiredFields(inputData);
+    if (!checkObj.isValid) {
+      return {
+        errCode: 1,
+        errMessage: `Missing parameter: ${checkObj.element}`,
+      };
+    }
+    if (inputData.action === "CREATE") {
+      await db.Markdown.create({
+        doctorId: inputData.doctorId,
+        contentHTML: inputData.contentHTML,
+        contentMarkdown: inputData.contentMarkdown,
+        description: inputData.description,
+      });
+    } else if (inputData.action === "EDIT") {
+      const doctorMarkdown = await db.Markdown.findOne({
+        where: { doctorId: inputData.doctorId },
+        raw: false,
+      });
+
+      if (doctorMarkdown) {
+        doctorMarkdown.contentHTML = inputData.contentHTML;
+        doctorMarkdown.contentMarkdown = inputData.contentMarkdown;
+        doctorMarkdown.description = inputData.description;
+        await doctorMarkdown.save();
+      }
+    }
+
+    let doctorInfo = await db.DoctorInfo.findOne({
+      where: { doctorId: inputData.doctorId },
+      raw: false,
+    });
+
+    const specialtyIds = Array.isArray(inputData.specialtyIds)
+      ? inputData.specialtyIds
+      : [];
+
+    if (doctorInfo) {
+      doctorInfo.priceId = inputData.selectedPrice;
+      doctorInfo.paymentId = inputData.selectedPayment;
+      doctorInfo.provinceId = inputData.selectedProvince;
+      doctorInfo.nameClinic = inputData.nameClinic;
+      doctorInfo.addressClinic = inputData.addressClinic;
+      doctorInfo.note = inputData.note;
+      doctorInfo.clinicId = inputData.clinicId;
+      await doctorInfo.save();
+    } else {
+      await db.DoctorInfo.create({
+        doctorId: inputData.doctorId,
+        priceId: inputData.selectedPrice,
+        paymentId: inputData.selectedPayment,
+        provinceId: inputData.selectedProvince,
+        nameClinic: inputData.nameClinic,
+        addressClinic: inputData.addressClinic,
+        note: inputData.note,
+        clinicId: inputData.clinicId,
+      });
+    }
+    await db.Doctor_Clinic_Specialty.destroy({
+      where: { doctorId: inputData.doctorId },
+    });
+    if (specialtyIds && specialtyIds.length > 0) {
+      const bulkData = specialtyIds.map((id: number) => ({
+        doctorId: inputData.doctorId,
+        clinicId: inputData.clinicId,
+        specialtyId: id,
+      }));
+      await db.Doctor_Clinic_Specialty.bulkCreate(bulkData);
+    }
+
+    return {
+      errCode: 0,
+      errMessage: "Save info doctor succeed",
+    };
+  } catch (e) {
+    console.error("saveInfoDoctor ERROR:", e);
+    return {
+      errCode: -1,
+      errMessage: "Error from server",
+    };
+  }
+};
+
+// Lấy thông tin chi tiết bác sĩ theo ID
+const getDetailDoctorByIdService = (inputId: string | number): Promise<any> => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      if (!inputId) {
+        resolve({ errCode: 1, errMessage: "Missing Parameter!" });
+      } else {
+        let data: any = await db.User.findOne({
+          where: {
+            id: inputId,
+          },
+          attributes: {
+            exclude: ["password"],
+          },
+          include: [
+            {
+              model: db.Markdown,
+              attributes: ["description", "contentHTML", "contentMarkdown"],
+            },
+            {
+              model: db.AllCode,
+              as: "positionData",
+              attributes: ["value_En", "value_Vi"],
+            },
+            {
+              model: db.AllCode,
+              as: "roleData",
+              attributes: ["value_En", "value_Vi"],
+            },
+            {
+              model: db.DoctorInfo,
+              attributes: {
+                exclude: ["id", "doctorId", "createdAt", "updatedAt"],
+              },
+              include: [
+                {
+                  model: db.AllCode,
+                  as: "priceTypeData",
+                  attributes: ["value_En", "value_Vi"],
+                },
+                {
+                  model: db.AllCode,
+                  as: "provinceTypeData",
+                  attributes: ["value_En", "value_Vi"],
+                },
+                {
+                  model: db.AllCode,
+                  as: "paymentTypeData",
+                  attributes: ["value_En", "value_Vi"],
+                },
+              ],
+            },
+          ],
+          nest: true,
+          raw: false,
+        });
+        const listSpecialty = await db.Doctor_Clinic_Specialty.findAll({
+          where: { doctorId: inputId },
+          attributes: ["specialtyId"],
+          raw: true,
+        });
+        const specialtyIds = listSpecialty.map((item: any) => item.specialtyId);
+
+        if (!data) {
+          data = {};
+        }
+        if (!data.DoctorInfo) {
+          data.DoctorInfo = {};
+        }
+        data.DoctorInfo.specialtyIds = specialtyIds;
+
+        if (data && data.image) {
+          data.image = data.image.toString("base64");
+        }
+
+        resolve({
+          errCode: 0,
+          data: data,
+        });
+      }
+    } catch (e) {
+      reject(e);
+    }
+  });
+};
+
+// Tạo hàng loạt lịch khám cho bác sĩ
+const bulkCreateSchedule = (data: any): Promise<any> => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      if (
+        !data ||
+        !data.doctorId ||
+        !data.formattedDate ||
+        !Array.isArray(data.arrSchedule)
+      ) {
+        resolve({
+          errCode: 1,
+          errMessage: "Missing required parameter!",
+        });
+        return;
+      } else {
+        let schedule = data.arrSchedule;
+        const normalizedDate = data.formattedDate
+          ? new Date(Number(data.formattedDate)).setHours(0, 0, 0, 0)
+          : schedule.length > 0
+            ? new Date(Number(schedule[0].date)).setHours(0, 0, 0, 0)
+            : "";
+
+        const dateToQuery = normalizedDate ? String(normalizedDate) : "";
+
+        // Xóa các khung giờ đã có trong DB nhưng không còn nằm trong payload
+        const incomingTimeTypes = new Set(
+          (schedule || [])
+            .map((item: any) => item.timeType)
+            .filter((timeType: string) => !!timeType),
+        );
+
+        if (!dateToQuery) {
+          resolve({
+            errCode: 1,
+            errMessage: "Missing required parameter!",
+          });
+          return;
+        }
+
+        if (incomingTimeTypes.size === 0) {
+          await db.Schedule.destroy({
+            where: {
+              doctorId: data.doctorId,
+              date: dateToQuery,
+            },
+          });
+          resolve({
+            errCode: 0,
+            errMessage: "OK",
+          });
+          return;
+        }
+
+        await db.Schedule.destroy({
+          where: {
+            doctorId: data.doctorId,
+            date: dateToQuery,
+            timeType: { [Op.notIn]: Array.from(incomingTimeTypes) },
+          },
+        });
+
+        if (schedule && schedule.length > 0) {
+          schedule = schedule.map((item: any) => {
+            item.maxNumber = MAX_NUMBER_SCHEDULE;
+            item.date = String(normalizedDate);
+            return item;
+          });
+        }
+
+        const existing = await db.Schedule.findAll({
+          where: {
+            doctorId: data.doctorId,
+            date: dateToQuery,
+          },
+          attributes: ["timeType", "date", "doctorId", "maxNumber"],
+          nest: true,
+          raw: true,
+        });
+        const toCreate = _.differenceWith(
+          schedule,
+          existing,
+          (a: any, b: any) => {
+            return a.timeType === b.timeType && +a.date === +b.date;
+          },
+        );
+        if (toCreate && toCreate.length > 0) {
+          await db.Schedule.bulkCreate(toCreate);
+        }
+        resolve({
+          errCode: 0,
+          errMessage: "OK",
+        });
+      }
+    } catch (e) {
+      reject(e);
+    }
+  });
+};
+
+// Lấy lịch khám theo ngày
+const getScheduleByDate = (
+  doctorId: string | number,
+  date: string,
+): Promise<any> => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      if (!doctorId || !date) {
+        resolve({
+          errCode: 1,
+          errMessage: "Missing required parameter!",
+        });
+        return;
+      }
+
+      const normalizedDate = String(
+        new Date(Number(date)).setHours(0, 0, 0, 0),
+      );
+
+      let schedules = await db.Schedule.findAll({
+        where: {
+          doctorId: doctorId,
+          date: normalizedDate,
+        },
+        include: [
+          {
+            model: db.AllCode,
+            as: "timeTypeData",
+            attributes: ["value_En", "value_Vi"],
+          },
+        ],
+        raw: false,
+        nest: true,
+      });
+      if (!schedules) schedules = [];
+      schedules = schedules.map((item: any) => {
+        return {
+          ...item.toJSON(),
+          isSelected: true,
+        };
+      });
+      resolve({
+        errCode: 0,
+        data: schedules,
+      });
+    } catch (e) {
+      reject(e);
+    }
+  });
+};
+
+// Tạo hàng loạt dịch vụ cho bác sĩ
+const bulkCreateDoctorService = (data: any): Promise<any> => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      if (!data.arrDoctorService || !data.doctorId) {
+        resolve({
+          errCode: 1,
+          errMessage: "Missing required parameter!",
+        });
+      } else {
+        let services = data.arrDoctorService;
+        if (services && services.length > 0) {
+          services = services.map((item: any) => {
+            return {
+              ...item,
+              doctorId: data.doctorId,
+            };
+          });
+        }
+        await db.DoctorServices.destroy({
+          where: { doctorId: data.doctorId },
+        });
+        await db.DoctorServices.bulkCreate(services);
+        resolve({
+          errCode: 0,
+          errMessage: "OK",
+        });
+      }
+    } catch (e) {
+      reject(e);
+    }
+  });
+};
+
+// Lấy danh sách dịch vụ của bác sĩ
+const getListDoctorServices = (inputId: string | number): Promise<any> => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      if (!inputId) {
+        resolve({
+          errCode: 1,
+          errMessage: "Missing required parameter!",
+        });
+      } else {
+        const services = await db.DoctorServices.findAll({
+          where: { doctorId: inputId },
+          attributes: [
+            "nameVi",
+            "nameEn",
+            "price",
+            "descriptionVi",
+            "descriptionEn",
+          ],
+        });
+
+        resolve({
+          errCode: 0,
+          data: services,
+        });
+      }
+    } catch (e) {
+      reject(e);
+    }
+  });
+};
+
+// Lấy thông tin bổ sung của bác sĩ theo ID
+const getExtraInfoDoctorByIdService = (
+  inputId: string | number,
+): Promise<any> => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      if (!inputId) {
+        resolve({
+          errCode: 1,
+          errMessage: "Missing required parameter!",
+        });
+      } else {
+        let info = await db.DoctorInfo.findOne({
+          where: { doctorId: inputId },
+          attributes: {
+            exclude: ["id", "doctorId", "createdAt", "updatedAt"],
+          },
+          include: [
+            {
+              model: db.AllCode,
+              as: "priceTypeData",
+              attributes: ["value_En", "value_Vi"],
+            },
+            {
+              model: db.AllCode,
+              as: "provinceTypeData",
+              attributes: ["value_En", "value_Vi"],
+            },
+            {
+              model: db.AllCode,
+              as: "paymentTypeData",
+              attributes: ["value_En", "value_Vi"],
+            },
+          ],
+          raw: false,
+          nest: true,
+        });
+        if (!info) info = {};
+        resolve({
+          errCode: 0,
+          data: info,
+        });
+      }
+    } catch (e) {
+      reject(e);
+    }
+  });
+};
+
+// Lấy danh sách chuyên khoa của bác sĩ
+const getSpecialtiesByDoctorIdService = (
+  doctorId: string | number,
+): Promise<any> => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      if (!doctorId) {
+        resolve({
+          errCode: 1,
+          errMessage: "Missing required parameter!",
+        });
+        return;
+      }
+
+      const listSpecialty = await db.Doctor_Clinic_Specialty.findAll({
+        where: { doctorId },
+        attributes: ["specialtyId"],
+        raw: true,
+      });
+
+      const specialtyIds = listSpecialty.map((item: any) => item.specialtyId);
+
+      resolve({
+        errCode: 0,
+        data: specialtyIds,
+      });
+    } catch (e) {
+      reject(e);
+    }
+  });
+};
+
+// Lấy danh sách bác sĩ theo chuyên khoa
+const getDoctorSpecialtyByIdService = (inputData: any): Promise<any> => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      if (!inputData.id) {
+        resolve({
+          errCode: 1,
+          errMessage: "Missing required parameters!",
+        });
+      } else {
+        const doctorLinks = await db.Doctor_Clinic_Specialty.findAll({
+          where: { specialtyId: inputData.id },
+          attributes: ["doctorId"],
+          raw: true,
+        });
+        const doctorIds = [
+          ...new Set(doctorLinks.map((item: any) => item.doctorId)),
+        ];
+
+        let doctors = await db.User.findAll({
+          where: { roleId: "R2", id: { [Op.in]: doctorIds } },
+          attributes: {
+            exclude: ["password"],
+          },
+          include: [
+            {
+              model: db.Markdown,
+              attributes: ["description", "contentHTML", "contentMarkdown"],
+            },
+            {
+              model: db.AllCode,
+              as: "positionData",
+              attributes: ["value_En", "value_Vi"],
+            },
+            {
+              model: db.AllCode,
+              as: "roleData",
+              attributes: ["value_En", "value_Vi"],
+            },
+            {
+              model: db.DoctorInfo,
+              attributes: {
+                exclude: ["id", "doctorId", "createdAt", "updatedAt"],
+              },
+              required: true,
+              include: [
+                {
+                  model: db.AllCode,
+                  as: "priceTypeData",
+                  attributes: ["value_En", "value_Vi"],
+                },
+                {
+                  model: db.AllCode,
+                  as: "provinceTypeData",
+                  attributes: ["value_En", "value_Vi"],
+                },
+                {
+                  model: db.AllCode,
+                  as: "paymentTypeData",
+                  attributes: ["value_En", "value_Vi"],
+                },
+              ],
+            },
+          ],
+          raw: false,
+          nest: true,
+        });
+
+        if (doctors && doctors.length > 0) {
+          doctors = doctors.map((item: any) => {
+            if (item.image) {
+              item.image = Buffer.from(item.image).toString("base64");
+            }
+            return item;
+          });
+        }
+
+        resolve({
+          errCode: 0,
+          data: doctors,
+        });
+      }
+    } catch (e) {
+      reject(e);
+    }
+  });
+};
+
+// Lấy danh sách bác sĩ theo phòng khám
+const getDoctorsByClinicIdService = (
+  clinicId: string | number,
+): Promise<any> => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      if (!clinicId) {
+        resolve({
+          errCode: 1,
+          errMessage: "Missing required parameter!",
+        });
+        return;
+      }
+
+      const doctorLinks = await db.Doctor_Clinic_Specialty.findAll({
+        where: { clinicId },
+        attributes: ["doctorId"],
+        raw: true,
+      });
+
+      const doctorIds = [
+        ...new Set(doctorLinks.map((item: any) => item.doctorId)),
+      ];
+
+      const clinicInfo = await db.Clinic.findOne({
+        where: { id: clinicId },
+        attributes: ["id", "name", "address"],
+        raw: true,
+      });
+
+      resolve({
+        errCode: 0,
+        data: doctorIds,
+        clinic: clinicInfo || null,
+      });
+    } catch (e) {
+      reject(e);
+    }
+  });
+};
+
+export default {
+  getTopDoctorHome,
+  getAllDoctors,
+  saveInfoDoctor,
+  getDetailDoctorByIdService,
+  bulkCreateSchedule,
+  getScheduleByDate,
+  bulkCreateDoctorService,
+  getListDoctorServices,
+  getExtraInfoDoctorByIdService,
+  getSpecialtiesByDoctorIdService,
+  getDoctorSpecialtyByIdService,
+  getDoctorsByClinicIdService,
+};

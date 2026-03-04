@@ -1,0 +1,2229 @@
+# Phân tích Hệ thống Backend - Medical Appointment Booking System
+
+## 1. Tổng quan Kiến trúc
+
+### 1.1 Kiến trúc Hiện tại (Node.js)
+- **Runtime:** Node.js với Babel (ES6+)
+- **Framework:** Express.js (MVC Pattern)
+- **Database:** MySQL 8 + Sequelize ORM
+- **Authentication:** bcryptjs (password hashing)
+- **Email Service:** Nodemailer (SMTP Gmail)
+- **Containerization:** Docker Compose (MySQL + phpMyAdmin)
+
+### 1.2 Kiến trúc Tương lai (Java Spring Boot) - Migration Plan
+
+#### Tech Stack mới:
+- **Runtime:** JVM (Java 17 LTS hoặc Java 21 LTS)
+- **Framework:** Spring Boot 3.2+ (Spring MVC + Spring Data JPA)
+- **Build Tool:** Maven 3.9+ hoặc Gradle 8+
+- **ORM:** Spring Data JPA + Hibernate 6
+- **Authentication:** Spring Security 6 + JWT (jjwt library)
+- **Email Service:** Spring Mail (spring-boot-starter-mail)
+- **Validation:** Hibernate Validator (Bean Validation 3.0)
+- **API Docs:** SpringDoc OpenAPI 3 (Swagger UI)
+- **Containerization:** Docker với multi-stage build
+
+#### Dependencies bắt buộc (pom.xml):
+```xml
+<dependencies>
+    <!-- Spring Boot Starters -->
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-data-jpa</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-security</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-mail</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-validation</artifactId>
+    </dependency>
+    
+    <!-- Database -->
+    <dependency>
+        <groupId>mysql</groupId>
+        <artifactId>mysql-connector-java</artifactId>
+        <version>8.0.33</version>
+    </dependency>
+    
+    <!-- JWT -->
+    <dependency>
+        <groupId>io.jsonwebtoken</groupId>
+        <artifactId>jjwt-api</artifactId>
+        <version>0.12.3</version>
+    </dependency>
+    
+    <!-- Utilities -->
+    <dependency>
+        <groupId>org.projectlombok</groupId>
+        <artifactId>lombok</artifactId>
+        <scope>provided</scope>
+    </dependency>
+    
+    <!-- Testing -->
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-test</artifactId>
+        <scope>test</scope>
+    </dependency>
+</dependencies>
+```
+
+#### Cấu trúc Project chuẩn:
+```
+src/
+├── main/
+│   ├── java/com/medical/booking/
+│   │   ├── entity/              # JPA Entities (thay models/)
+│   │   ├── repository/          # Spring Data JPA (thay Sequelize)
+│   │   ├── service/             # Business Logic (giữ nguyên concept)
+│   │   │   ├── impl/            # Service implementations
+│   │   │   └── interfaces/      # Service interfaces
+│   │   ├── controller/          # REST Controllers (giữ nguyên)
+│   │   ├── dto/                 # Data Transfer Objects (MỚI - bắt buộc)
+│   │   │   ├── request/         # Request DTOs
+│   │   │   └── response/        # Response DTOs
+│   │   ├── mapper/              # Entity ↔ DTO converters (MỚI)
+│   │   ├── security/            # JWT + Spring Security config (MỚI)
+│   │   │   ├── JwtTokenProvider.java
+│   │   │   ├── JwtAuthenticationFilter.java
+│   │   │   └── SecurityConfig.java
+│   │   ├── exception/           # Global Exception Handler (MỚI)
+│   │   │   ├── GlobalExceptionHandler.java
+│   │   │   └── CustomExceptions.java
+│   │   ├── config/              # Spring Configuration
+│   │   └── MedicalBookingApplication.java  # Main class
+│   └── resources/
+│       ├── application.yml      # Thay .env
+│       ├── application-dev.yml
+│       ├── application-prod.yml
+│       └── templates/           # Email templates (Thymeleaf)
+└── test/
+    └── java/com/medical/booking/
+        ├── controller/          # Integration tests
+        └── service/             # Unit tests
+```
+
+---
+
+## 2. Phân tích Entities & Relationships
+
+### Core Entities
+- **User (users):** Đa vai trò (Admin, Doctor, Patient), thông tin cơ bản, metadata, roleId, positionId
+- **DoctorInfo (doctor_infos):** Thông tin chuyên môn bác sĩ, priceId, provinceId, paymentId, nameClinic, addressClinic, note, doctorId, clinicId
+- **Doctor_Clinic_Specialty:** Bảng liên kết N-N-N (Doctor ↔ Clinic ↔ Specialty), unique composite index
+- **Schedule (schedules):** Quản lý lịch khám theo ngày và khung giờ, doctorId, date, timeType, maxNumber, currentNumber
+- **Booking (bookings):** Quản lý đặt lịch hẹn, status workflow, token, birthday, reason, date, timeType, doctorId, patientId, statusId
+- **Specialty (specialties) & Clinic (clinics):** Thông tin chuyên khoa và phòng khám, markdown content
+- **AllCode (allCodes):** Master data table quản lý danh mục chung (ROLE, GENDER, POSITION, TIME, PRICE, PAYMENT, PROVINCE, STATUS)
+
+### Entity Relationships
+- **User** có quan hệ 1-N với **Booking** (1 user có nhiều bookings)
+- **Doctor** có quan hệ 1-N với **Schedule** (1 bác sĩ có nhiều lịch khám)
+- **Doctor** có quan hệ N-N-N với **Clinic** và **Specialty** qua bảng **Doctor_Clinic_Specialty**
+- **Booking** liên kết với **User** (patientId), **Doctor** (doctorId), và **AllCode** (statusId, timeType)
+- **AllCode** được sử dụng làm master data cho tất cả các enum/lookup values
+
+---
+
+## 3. Phân tích Business Logic theo Module
+
+### 3.1 Authentication & User Management
+**Chức năng chính:**
+- Login với email/password + bcrypt verification
+- CRUD Users (Create, Read, Update, Delete)
+- Validation: email uniqueness check
+- Password hashing tự động khi tạo user
+
+**Vấn đề hiện tại:**
+- Chưa có JWT token authentication
+- Không có password reset mechanism
+- Thiếu RBAC (Role-Based Access Control) middleware
+
+**Đề xuất cải tiến:**
+- ✅ Implement JWT token-based authentication
+- ✅ Thêm password reset flow (email verification)
+- ✅ RBAC middleware để phân quyền Admin/Doctor/Patient
+
+---
+
+### 3.2 Doctor Management
+**Chức năng chính:**
+- Lưu thông tin bác sĩ: Upsert Markdown, DoctorInfo, Doctor_Clinic_Specialty
+- Quản lý lịch khám: Normalize date, xóa/giữ/upsert khung giờ
+- Liên kết bác sĩ với chuyên khoa và phòng khám
+
+**Vấn đề hiện tại:**
+- Không sử dụng database transaction (có thể dẫn đến dữ liệu không nhất quán)
+- Thiếu validation cho maxNumber, duplicate schedules
+- Không kiểm tra xung đột lịch khám
+
+**Đề xuất cải tiến:**
+- ✅ Wrap tất cả operations trong transaction
+- ✅ Validate maxNumber > currentNumber
+- ✅ Prevent duplicate schedules (doctorId + date + timeType unique)
+- ✅ Check schedule conflicts trước khi upsert
+
+---
+
+### 3.3 Booking & Patient Management
+**Chức năng chính:**
+- Đặt lịch khám: Validate fields, generate UUID token, gửi email xác nhận
+- Auto-create user nếu email chưa tồn tại
+- Kiểm tra slot còn trống (currentNumber < maxNumber)
+- Email Verification: Update status từ S1 (Pending) → S2 (Confirmed)
+
+**Vấn đề hiện tại:**
+- Race condition khi nhiều người book cùng 1 slot
+- Token verification không có expiration time
+- Không có resend email mechanism
+- Thiếu validate doctorId, date, timeType hợp lệ
+
+**Đề xuất cải tiến:**
+- ✅ Use transaction + row-level locking để tránh race condition
+- ✅ Thêm token expiration (1 hour)
+- ✅ Implement resend email API
+- ✅ Validate doctorId exists, date >= today, timeType valid
+
+---
+
+### 3.4 Specialty & Clinic Management
+**Chức năng chính:**
+- CRUD với image upload (base64 encoding)
+- Markdown editor cho description
+- Lọc bác sĩ theo specialty/clinic
+
+**Vấn đề hiện tại:**
+- Base64 encoding làm database size lớn
+- Không cleanup orphan records khi xóa
+- Thiếu soft delete mechanism
+
+**Đề xuất cải tiến:**
+- ✅ Sử dụng S3/Cloudinary thay vì base64
+- ✅ Cleanup orphan Doctor_Clinic_Specialty records
+- ✅ Implement soft delete (thêm field deletedAt)
+
+---
+
+## 4. Phân tích Database Schema
+
+### Điểm mạnh:
+- ✅ **AllCode pattern:** Giảm redundancy, dễ maintain master data
+- ✅ **Composite unique index:** Trên Doctor_Clinic_Specialty (doctorId, clinicId, specialtyId) ngăn duplicate
+- ✅ **Normalized design:** Tách biệt User, DoctorInfo, Markdown
+
+### Điểm yếu:
+- ⚠️ Thiếu index cho các query phổ biến (email, doctorId, date)
+- ⚠️ Thiếu audit fields (createdAt, updatedAt, deletedAt)
+- ⚠️ Date field lưu dạng STRING thay vì DATE/BIGINT
+
+### Đề xuất cải tiến:
+```sql
+-- Thêm indexes
+ALTER TABLE users ADD INDEX idx_email (email);
+ALTER TABLE bookings ADD INDEX idx_doctor_date (doctorId, date);
+ALTER TABLE schedules ADD INDEX idx_doctor_date_time (doctorId, date, timeType);
+
+-- Thêm audit fields
+ALTER TABLE bookings ADD deletedAt DATETIME NULL;
+ALTER TABLE doctor_infos ADD createdBy INT NULL;
+```
+
+---
+
+## 5. Security Issues
+
+### Vấn đề hiện tại (Node.js):
+- ❌ **No authentication middleware:** API endpoints không kiểm tra token
+- ❌ **Input sanitization:** Dễ bị XSS, SQL Injection
+- ❌ **Rate limiting:** API không giới hạn số request
+- ❌ **CORS config:** Quá loose, chấp nhận tất cả origins
+- ❌ **Base64 image storage:** Không giới hạn file size, có thể bị DOS attack
+- ❌ **Password validation:** Không có rules (min length, complexity)
+
+### Đề xuất cải tiến (Node.js):
+```javascript
+// 1. JWT Middleware
+const verifyToken = (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'Unauthorized' });
+  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+    if (err) return res.status(403).json({ message: 'Forbidden' });
+    req.user = decoded;
+    next();
+  });
+};
+
+// 2. Input Validation với Joi
+const bookingSchema = Joi.object({
+  doctorId: Joi.number().required(),
+  date: Joi.date().min('now').required(),
+  timeType: Joi.string().valid('T1', 'T2', 'T3').required(),
+  email: Joi.string().email().required()
+});
+
+// 3. Rate Limiting
+const rateLimit = require('express-rate-limit');
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100 // limit each IP to 100 requests per windowMs
+});
+app.use('/api/', limiter);
+
+// 4. CORS Whitelist
+const cors = require('cors');
+app.use(cors({
+  origin: ['https://yourdomain.com', 'http://localhost:3000']
+}));
+```
+
+### Giải pháp với Spring Boot (Tốt hơn):
+
+**1. Spring Security + JWT Configuration:**
+```java
+// security/SecurityConfig.java
+@Configuration
+@EnableWebSecurity
+@EnableMethodSecurity
+public class SecurityConfig {
+    
+    @Autowired
+    private JwtAuthenticationEntryPoint unauthorizedHandler;
+    
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http
+            .csrf(csrf -> csrf.disable())
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .exceptionHandling(ex -> ex.authenticationEntryPoint(unauthorizedHandler))
+            .sessionManagement(session -> 
+                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(auth -> auth
+                // Public endpoints
+                .requestMatchers("/api/auth/**", "/api/public/**").permitAll()
+                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                
+                // Role-based access
+                .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                .requestMatchers("/api/doctor/**").hasAnyRole("DOCTOR", "ADMIN")
+                .requestMatchers("/api/patient/**").hasAnyRole("PATIENT", "ADMIN")
+                
+                // Authenticated
+                .anyRequest().authenticated()
+            )
+            .addFilterBefore(jwtAuthenticationFilter(), 
+                           UsernamePasswordAuthenticationFilter.class);
+        
+        return http.build();
+    }
+    
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(Arrays.asList(
+            "http://localhost:3000",
+            "https://yourdomain.com"
+        ));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(Arrays.asList("*"));
+        configuration.setAllowCredentials(true);
+        
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/api/**", configuration);
+        return source;
+    }
+    
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder(10);
+    }
+}
+```
+
+**2. Bean Validation (thay Joi):**
+```java
+// dto/request/BookingRequestDto.java
+@Data
+@Validated
+public class BookingRequestDto {
+    
+    @NotNull(message = "Doctor ID bắt buộc")
+    @Positive
+    private Long doctorId;
+    
+    @NotNull(message = "Ngày khám bắt buộc")
+    @FutureOrPresent(message = "Ngày khám phải từ hôm nay trở đi")
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private LocalDate date;
+    
+    @NotBlank(message = "Email bắt buộc")
+    @Email(message = "Email không hợp lệ")
+    @Size(max = 100)
+    private String email;
+    
+    @NotBlank
+    @Pattern(regexp = "^(T1|T2|T3|T4)$", message = "Time type phải là T1, T2, T3 hoặc T4")
+    private String timeType;
+    
+    @Size(max = 500, message = "Lý do khám tối đa 500 ký tự")
+    private String reason;
+}
+
+// Custom validator cho ngày trong tương lai
+@Target({ElementType.FIELD})
+@Retention(RetentionPolicy.RUNTIME)
+@Constraint(validatedBy = FutureDateValidator.class)
+public @interface FutureDate {
+    String message() default "Date must be in the future";
+    Class<?>[] groups() default {};
+    Class<? extends Payload>[] payload() default {};
+}
+```
+
+**3. Rate Limiting với Bucket4j:**
+```java
+// config/RateLimitConfig.java
+@Configuration
+public class RateLimitConfig {
+    
+    @Bean
+    public Bucket createBucket() {
+        Bandwidth limit = Bandwidth.classic(100, Refill.intervally(100, Duration.ofMinutes(15)));
+        return Bucket.builder()
+            .addLimit(limit)
+            .build();
+    }
+}
+
+// filter/RateLimitFilter.java
+@Component
+public class RateLimitFilter extends OncePerRequestFilter {
+    
+    @Autowired
+    private Bucket bucket;
+    
+    @Override
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain filterChain) throws ServletException, IOException {
+        if (bucket.tryConsume(1)) {
+            filterChain.doFilter(request, response);
+        } else {
+            response.setStatus(429);
+            response.getWriter().write("{\"error\": \"Too many requests\"}");
+        }
+    }
+}
+```
+
+**4. XSS Protection:**
+```java
+// config/XssConfig.java
+@Configuration
+public class XssConfig {
+    
+    @Bean
+    public FilterRegistrationBean<XssFilter> xssFilter() {
+        FilterRegistrationBean<XssFilter> registrationBean = new FilterRegistrationBean<>();
+        registrationBean.setFilter(new XssFilter());
+        registrationBean.addUrlPatterns("/api/*");
+        return registrationBean;
+    }
+}
+
+// filter/XssFilter.java
+public class XssFilter implements Filter {
+    @Override
+    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) {
+        XssRequestWrapper wrappedRequest = new XssRequestWrapper((HttpServletRequest) request);
+        chain.doFilter(wrappedRequest, response);
+    }
+}
+```
+
+**5. SQL Injection Prevention:**
+```java
+// Spring Data JPA tự động prevent SQL Injection
+// KHÔNG BAO GIỜ dùng native query với string concatenation
+
+// ❌ WRONG (vulnerable)
+@Query(value = "SELECT * FROM users WHERE email = '" + email + "'", nativeQuery = true)
+
+// ✅ CORRECT (safe)
+@Query("SELECT u FROM User u WHERE u.email = :email")
+Optional<User> findByEmail(@Param("email") String email);
+
+// ✅ CORRECT (native query với params)
+@Query(value = "SELECT * FROM users WHERE email = ?1", nativeQuery = true)
+Optional<User> findByEmailNative(String email);
+```
+
+**Dependencies cần thêm:**
+```xml
+<!-- Rate Limiting -->
+<dependency>
+    <groupId>com.github.vladimir-bukhtoyarov</groupId>
+    <artifactId>bucket4j-core</artifactId>
+    <version>8.0.0</version>
+</dependency>
+
+<!-- XSS Protection -->
+<dependency>
+    <groupId>org.owasp.encoder</groupId>
+    <artifactId>encoder</artifactId>
+    <version>1.2.3</version>
+</dependency>
+```
+
+---
+
+## 6. Performance Bottlenecks
+
+### Vấn đề hiện tại:
+- ⚡ **N+1 Query Problem:** Khi lấy danh sách doctor kèm specialty/clinic
+- ⚡ **Image encoding overhead:** Base64 encode/decode làm chậm response
+- ⚡ **No caching:** Mỗi request đều query database
+- ⚡ **No pagination:** Trả toàn bộ records có thể quá lớn
+
+### Đề xuất cải tiến:
+```javascript
+// 1. Eager Loading (Sequelize)
+const doctors = await User.findAll({
+  where: { roleId: 'R2' },
+  include: [
+    { model: DoctorInfo, as: 'doctorData' },
+    { model: Specialty, as: 'specialties', through: { attributes: [] } }
+  ],
+  raw: false // IMPORTANT: avoid nested objects
+});
+
+// 2. Redis Cache
+const redis = require('redis');
+const client = redis.createClient();
+
+app.get('/api/specialties', async (req, res) => {
+  const cacheKey = 'specialties:all';
+  const cached = await client.get(cacheKey);
+  if (cached) return res.json(JSON.parse(cached));
+  
+  const data = await Specialty.findAll();
+  await client.setEx(cacheKey, 3600, JSON.stringify(data)); // cache 1 hour
+  res.json(data);
+});
+
+// 3. Pagination
+app.get('/api/doctors', async (req, res) => {
+  const { page = 1, limit = 10 } = req.query;
+  const offset = (page - 1) * limit;
+  
+  const { count, rows } = await User.findAndCountAll({
+    where: { roleId: 'R2' },
+    limit: parseInt(limit),
+    offset: parseInt(offset)
+  });
+  
+  res.json({ total: count, page, data: rows });
+});
+```
+
+---
+
+## 7. Đề xuất Cải tiến (Priority-based)
+
+### High Priority (Critical - Implement ngay):
+1. ✅ **JWT Authentication:** Bảo mật API endpoints
+2. ✅ **Request Validation:** Joi/Yup schema validation
+3. ✅ **Transaction Wrappers:** Atomic operations cho booking
+4. ✅ **Booking Slot Validation:** Prevent race condition
+5. ✅ **Security Hardening:** Rate limiting, CORS, password policy
+
+### Medium Priority (Important - Implement sau):
+6. ✅ **API Versioning:** /api/v1/... cho backward compatibility
+7. ✅ **Logging & Monitoring:** Winston + Sentry
+8. ✅ **Caching Layer:** Redis cho frequently accessed data
+9. ✅ **Pagination:** Tất cả list APIs
+10. ✅ **Image Storage:** Migrate từ base64 sang S3/Cloudinary
+
+### Low Priority (Nice to have):
+11. ✅ **Soft Delete:** Thêm deletedAt field
+12. ✅ **Audit Trail:** Track who created/modified records
+13. ✅ **Email Queue:** Bull/Bee-Queue thay vì sync sending
+14. ✅ **GraphQL API:** Alternative to REST
+
+---
+
+## 8. Deployment Checklist
+
+### 8.1 Node.js Deployment (Hiện tại)
+
+**Environment Variables (.env.production):**
+```env
+NODE_ENV=production
+PORT=8080
+DB_HOST=mysql-prod.example.com
+DB_PORT=3306
+DB_NAME=medical_booking
+DB_USERNAME=prod_user
+DB_PASSWORD=<secure_password>
+
+JWT_SECRET=<random_256_bit_string>
+JWT_EXPIRATION=7d
+
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USER=noreply@example.com
+EMAIL_PASSWORD=<app_password>
+
+REDIS_URL=redis://redis-prod.example.com:6379
+AWS_S3_BUCKET=medical-images-prod
+```
+
+**Docker Production Config:**
+```dockerfile
+# Dockerfile.prod
+FROM node:16-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+COPY . .
+RUN npm run build
+EXPOSE 8080
+CMD ["node", "build/server.js"]
+```
+
+**Health Check Endpoint:**
+```javascript
+app.get('/health', async (req, res) => {
+  try {
+    await db.authenticate();
+    res.json({ status: 'OK', db: 'connected' });
+  } catch (err) {
+    res.status(503).json({ status: 'ERROR', db: 'disconnected' });
+  }
+});
+```
+
+---
+
+### 8.2 Spring Boot Deployment (Tương lai)
+
+**Application Configuration (application.yml):**
+```yaml
+# application.yml (base config)
+spring:
+  application:
+    name: medical-booking-system
+  
+  profiles:
+    active: ${SPRING_PROFILE:dev}
+  
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/medical_booking}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:root}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+  
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+        format_sql: true
+        use_sql_comments: false
+  
+  mail:
+    host: ${EMAIL_HOST:smtp.gmail.com}
+    port: ${EMAIL_PORT:587}
+    username: ${EMAIL_USER}
+    password: ${EMAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+  
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 10MB
+
+server:
+  port: ${PORT:8080}
+  compression:
+    enabled: true
+  error:
+    include-message: always
+
+jwt:
+  secret: ${JWT_SECRET}
+  expiration: ${JWT_EXPIRATION:604800000}  # 7 days in milliseconds
+
+aws:
+  s3:
+    bucket: ${AWS_S3_BUCKET:medical-images}
+    region: ${AWS_REGION:ap-southeast-1}
+
+logging:
+  level:
+    root: INFO
+    com.medical.booking: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/application.log
+
+---
+# application-dev.yml
+spring:
+  config:
+    activate:
+      on-profile: dev
+  
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: update
+  
+  datasource:
+    url: jdbc:mysql://localhost:3306/medical_booking?useSSL=false
+    username: root
+    password: root
+
+logging:
+  level:
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+---
+# application-prod.yml
+spring:
+  config:
+    activate:
+      on-profile: prod
+  
+  jpa:
+    show-sql: false
+    hibernate:
+      ddl-auto: validate
+  
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 20
+
+logging:
+  level:
+    root: WARN
+    com.medical.booking: INFO
+```
+
+**Docker Multi-stage Build:**
+```dockerfile
+# Dockerfile (Production-ready)
+# Stage 1: Build
+FROM maven:3.9-eclipse-temurin-17-alpine AS build
+WORKDIR /app
+
+# Copy pom.xml và download dependencies (caching layer)
+COPY pom.xml .
+RUN mvn dependency:go-offline -B
+
+# Copy source code và build
+COPY src ./src
+RUN mvn clean package -DskipTests -B
+
+# Stage 2: Runtime
+FROM eclipse-temurin:17-jre-alpine
+WORKDIR /app
+
+# Tạo non-root user
+RUN addgroup -S spring && adduser -S spring -G spring
+USER spring:spring
+
+# Copy JAR file từ build stage
+COPY --from=build /app/target/*.jar app.jar
+
+# Expose port
+EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health || exit 1
+
+# Run application
+ENTRYPOINT ["java", \
+    "-XX:+UseContainerSupport", \
+    "-XX:MaxRAMPercentage=75.0", \
+    "-Djava.security.egd=file:/dev/./urandom", \
+    "-jar", \
+    "app.jar"]
+```
+
+**Docker Compose (Development):**
+```yaml
+# docker-compose.yml
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: medical-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: medical_booking
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - medical-network
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: medical-backend
+    environment:
+      SPRING_PROFILE: prod
+      DB_URL: jdbc:mysql://mysql:3306/medical_booking
+      DB_USERNAME: root
+      DB_PASSWORD: root
+      JWT_SECRET: ${JWT_SECRET}
+      EMAIL_USER: ${EMAIL_USER}
+      EMAIL_PASSWORD: ${EMAIL_PASSWORD}
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mysql
+    networks:
+      - medical-network
+    restart: unless-stopped
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: medical-phpmyadmin
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+    ports:
+      - "8081:80"
+    depends_on:
+      - mysql
+    networks:
+      - medical-network
+
+volumes:
+  mysql_data:
+
+networks:
+  medical-network:
+    driver: bridge
+```
+
+**Health Check & Actuator:**
+```java
+// Add dependency in pom.xml
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-actuator</artifactId>
+</dependency>
+
+// application.yml
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+  health:
+    db:
+      enabled: true
+    mail:
+      enabled: true
+
+// Custom Health Indicator
+@Component
+public class DatabaseHealthIndicator implements HealthIndicator {
+    
+    @Autowired
+    private DataSource dataSource;
+    
+    @Override
+    public Health health() {
+        try (Connection conn = dataSource.getConnection()) {
+            return Health.up()
+                .withDetail("database", "MySQL")
+                .withDetail("status", "Connected")
+                .build();
+        } catch (Exception e) {
+            return Health.down()
+                .withDetail("error", e.getMessage())
+                .build();
+        }
+    }
+}
+
+// Endpoints:
+// GET /actuator/health - Basic health check
+// GET /actuator/health/db - Database health
+// GET /actuator/metrics - Application metrics
+```
+
+**Environment Variables Script (.env):**
+```bash
+# .env
+SPRING_PROFILE=prod
+DB_URL=jdbc:mysql://mysql-prod.example.com:3306/medical_booking
+DB_USERNAME=prod_user
+DB_PASSWORD=super_secure_password_here
+
+JWT_SECRET=your-base64-encoded-secret-key-min-256-bits
+JWT_EXPIRATION=604800000
+
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USER=noreply@yourdomain.com
+EMAIL_PASSWORD=your_gmail_app_password
+
+AWS_S3_BUCKET=medical-images-prod
+AWS_REGION=ap-southeast-1
+AWS_ACCESS_KEY_ID=your_access_key
+AWS_SECRET_ACCESS_KEY=your_secret_key
+```
+
+**Build & Run Commands:**
+```bash
+# Local development
+mvn spring-boot:run -Dspring-boot.run.profiles=dev
+
+# Build JAR
+mvn clean package -DskipTests
+
+# Run JAR
+java -jar target/medical-booking-0.0.1-SNAPSHOT.jar
+
+# Docker build
+docker build -t medical-booking:latest .
+
+# Docker run
+docker run -p 8080:8080 \
+  -e SPRING_PROFILE=prod \
+  -e DB_URL=jdbc:mysql://host.docker.internal:3306/medical_booking \
+  -e JWT_SECRET=your_secret \
+  medical-booking:latest
+
+# Docker Compose
+docker-compose up -d
+docker-compose logs -f backend
+
+# Check health
+curl http://localhost:8080/actuator/health
+```
+
+**CI/CD Pipeline (GitHub Actions):**
+```yaml
+# .github/workflows/deploy.yml
+name: Deploy Spring Boot App
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up JDK 17
+      uses: actions/setup-java@v3
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+    
+    - name: Build with Maven
+      run: mvn clean package -DskipTests
+    
+    - name: Run tests
+      run: mvn test
+    
+    - name: Build Docker image
+      run: docker build -t medical-booking:${{ github.sha }} .
+    
+    - name: Push to Docker Registry
+      run: |
+        echo ${{ secrets.DOCKER_PASSWORD }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+        docker push medical-booking:${{ github.sha }}
+    
+    - name: Deploy to Production
+      run: |
+        # SSH to server and restart container
+        ssh user@production-server "docker pull medical-booking:${{ github.sha }} && docker-compose up -d"
+```
+
+---
+
+## 9. Testing Strategy
+
+### 9.1 Node.js Testing (Hiện tại)
+
+**Unit Tests (Jest):**
+```javascript
+// userService.test.js
+describe('UserService', () => {
+  test('should create user with hashed password', async () => {
+    const userData = { email: 'test@test.com', password: '123456' };
+    const user = await userService.createUser(userData);
+    expect(user.password).not.toBe('123456');
+    expect(bcrypt.compareSync('123456', user.password)).toBe(true);
+  });
+});
+```
+
+**Integration Tests:**
+```javascript
+// booking.test.js
+const request = require('supertest');
+const app = require('../server');
+
+describe('POST /api/patient-book-appointment', () => {
+  test('should create booking and send email', async () => {
+    const res = await request(app)
+      .post('/api/patient-book-appointment')
+      .send({
+        doctorId: 1,
+        date: '2024-12-25',
+        timeType: 'T1',
+        email: 'patient@test.com'
+      });
+    expect(res.status).toBe(200);
+    expect(res.body.errCode).toBe(0);
+  });
+});
+```
+
+---
+
+### 9.2 Spring Boot Testing (Tương lai)
+
+#### A. Unit Tests (JUnit 5 + Mockito)
+
+**Dependencies:**
+```xml
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-test</artifactId>
+    <scope>test</scope>
+</dependency>
+```
+
+**Service Layer Tests:**
+```java
+// test/service/UserServiceTest.java
+@ExtendWith(MockitoExtension.class)
+class UserServiceTest {
+    
+    @Mock
+    private UserRepository userRepository;
+    
+    @Mock
+    private PasswordEncoder passwordEncoder;
+    
+    @InjectMocks
+    private UserService userService;
+    
+    @Test
+    @DisplayName("Should create user with hashed password")
+    void shouldCreateUserWithHashedPassword() {
+        // Given
+        UserRequestDto request = UserRequestDto.builder()
+            .email("test@test.com")
+            .password("123456")
+            .firstName("John")
+            .build();
+        
+        User savedUser = new User();
+        savedUser.setEmail(request.getEmail());
+        savedUser.setPassword("$2a$10$hashed_password");
+        
+        when(passwordEncoder.encode("123456")).thenReturn("$2a$10$hashed_password");
+        when(userRepository.save(any(User.class))).thenReturn(savedUser);
+        
+        // When
+        UserResponseDto result = userService.createUser(request);
+        
+        // Then
+        assertNotNull(result);
+        assertEquals("test@test.com", result.getEmail());
+        verify(passwordEncoder, times(1)).encode("123456");
+        verify(userRepository, times(1)).save(any(User.class));
+    }
+    
+    @Test
+    @DisplayName("Should throw exception when email already exists")
+    void shouldThrowExceptionWhenEmailExists() {
+        // Given
+        String email = "existing@test.com";
+        when(userRepository.existsByEmail(email)).thenReturn(true);
+        
+        UserRequestDto request = new UserRequestDto();
+        request.setEmail(email);
+        
+        // When & Then
+        assertThrows(EmailAlreadyExistsException.class, 
+            () -> userService.createUser(request));
+    }
+}
+```
+
+**Repository Layer Tests:**
+```java
+// test/repository/BookingRepositoryTest.java
+@DataJpaTest
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+class BookingRepositoryTest {
+    
+    @Autowired
+    private BookingRepository bookingRepository;
+    
+    @Autowired
+    private UserRepository userRepository;
+    
+    @Test
+    @DisplayName("Should find booking by token and status")
+    void shouldFindBookingByTokenAndStatus() {
+        // Given
+        User patient = createTestUser("patient@test.com", "PATIENT");
+        userRepository.save(patient);
+        
+        Booking booking = Booking.builder()
+            .token(UUID.randomUUID().toString())
+            .status(BookingStatus.PENDING)
+            .patient(patient)
+            .date(LocalDate.now().plusDays(1))
+            .build();
+        bookingRepository.save(booking);
+        
+        // When
+        Optional<Booking> found = bookingRepository
+            .findByTokenAndStatus(booking.getToken(), BookingStatus.PENDING);
+        
+        // Then
+        assertTrue(found.isPresent());
+        assertEquals(booking.getToken(), found.get().getToken());
+    }
+}
+```
+
+---
+
+#### B. Integration Tests (MockMvc)
+
+**Controller Tests:**
+```java
+// test/controller/BookingControllerTest.java
+@SpringBootTest
+@AutoConfigureMockMvc
+@Transactional
+class BookingControllerTest {
+    
+    @Autowired
+    private MockMvc mockMvc;
+    
+    @Autowired
+    private ObjectMapper objectMapper;
+    
+    @Autowired
+    private BookingRepository bookingRepository;
+    
+    @MockBean
+    private EmailService emailService;
+    
+    @WithMockUser(username = "patient@test.com", roles = {"PATIENT"})
+    @Test
+    @DisplayName("Should create booking successfully")
+    void shouldCreateBookingSuccessfully() throws Exception {
+        // Given
+        BookingRequestDto request = BookingRequestDto.builder()
+            .doctorId(1L)
+            .date(LocalDate.now().plusDays(1))
+            .timeType("T1")
+            .email("patient@test.com")
+            .reason("Đau đầu")
+            .build();
+        
+        // When & Then
+        mockMvc.perform(post("/api/patient-book-appointment")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.errCode").value(0))
+            .andExpect(jsonPath("$.message").value("Success"))
+            .andExpect(jsonPath("$.data.token").exists());
+        
+        // Verify
+        verify(emailService, times(1)).sendBookingConfirmation(any(), anyString());
+    }
+    
+    @Test
+    @DisplayName("Should return 400 when validation fails")
+    void shouldReturn400WhenValidationFails() throws Exception {
+        // Given - Invalid request (missing required fields)
+        BookingRequestDto request = new BookingRequestDto();
+        
+        // When & Then
+        mockMvc.perform(post("/api/patient-book-appointment")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.errCode").value(1))
+            .andExpect(jsonPath("$.errors").isMap());
+    }
+    
+    @WithMockUser(username = "patient@test.com", roles = {"PATIENT"})
+    @Test
+    @DisplayName("Should verify booking with valid token")
+    void shouldVerifyBookingWithValidToken() throws Exception {
+        // Given
+        Booking booking = createTestBooking();
+        bookingRepository.save(booking);
+        
+        VerifyBookingRequest request = new VerifyBookingRequest(
+            booking.getToken(), booking.getDoctor().getId()
+        );
+        
+        // When & Then
+        mockMvc.perform(post("/api/verify-book-appointment")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.errCode").value(0));
+        
+        // Verify status updated
+        Booking updated = bookingRepository.findById(booking.getId()).get();
+        assertEquals(BookingStatus.CONFIRMED, updated.getStatus());
+    }
+}
+```
+
+**Security Tests:**
+```java
+// test/security/SecurityTest.java
+@SpringBootTest
+@AutoConfigureMockMvc
+class SecurityTest {
+    
+    @Autowired
+    private MockMvc mockMvc;
+    
+    @Test
+    @DisplayName("Should return 401 when accessing protected endpoint without token")
+    void shouldReturn401WithoutToken() throws Exception {
+        mockMvc.perform(get("/api/doctor/schedules"))
+            .andExpect(status().isUnauthorized());
+    }
+    
+    @Test
+    @WithMockUser(roles = {"PATIENT"})
+    @DisplayName("Should return 403 when accessing admin endpoint with patient role")
+    void shouldReturn403WithWrongRole() throws Exception {
+        mockMvc.perform(get("/api/admin/users"))
+            .andExpect(status().isForbidden());
+    }
+    
+    @Test
+    @WithMockUser(username = "admin@test.com", roles = {"ADMIN"})
+    @DisplayName("Should access admin endpoint with admin role")
+    void shouldAccessAdminEndpointWithAdminRole() throws Exception {
+        mockMvc.perform(get("/api/admin/users"))
+            .andExpect(status().isOk());
+    }
+}
+```
+
+---
+
+#### C. Test Utilities & Fixtures
+
+**Test Data Builder:**
+```java
+// test/util/TestDataBuilder.java
+public class TestDataBuilder {
+    
+    public static User createTestUser(String email, String role) {
+        return User.builder()
+            .email(email)
+            .password("$2a$10$hashed_password")
+            .firstName("Test")
+            .lastName("User")
+            .role(AllCode.builder().keyMap(role).build())
+            .build();
+    }
+    
+    public static Booking createTestBooking() {
+        User patient = createTestUser("patient@test.com", "PATIENT");
+        User doctor = createTestUser("doctor@test.com", "DOCTOR");
+        
+        return Booking.builder()
+            .token(UUID.randomUUID().toString())
+            .status(BookingStatus.PENDING)
+            .patient(patient)
+            .doctor(doctor)
+            .date(LocalDate.now().plusDays(1))
+            .timeType("T1")
+            .reason("Test booking")
+            .build();
+    }
+}
+```
+
+**Custom Annotations:**
+```java
+// test/annotation/WithMockDoctor.java
+@Retention(RetentionPolicy.RUNTIME)
+@WithMockUser(username = "doctor@test.com", roles = {"DOCTOR"})
+public @interface WithMockDoctor {
+}
+
+// Usage
+@Test
+@WithMockDoctor
+void doctorCanAccessOwnSchedules() {
+    // Test code
+}
+```
+
+---
+
+#### D. Test Configuration
+
+**application-test.yml:**
+```yaml
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+  
+  mail:
+    host: localhost
+    port: 3025
+  
+jwt:
+  secret: test-secret-key-for-testing-only
+  expiration: 3600000
+
+logging:
+  level:
+    org.hibernate.SQL: DEBUG
+```
+
+**Test Database (H2):**
+```xml
+<dependency>
+    <groupId>com.h2database</groupId>
+    <artifactId>h2</artifactId>
+    <scope>test</scope>
+</dependency>
+```
+
+---
+
+#### E. Coverage & Reporting
+
+**Jacoco Plugin (pom.xml):**
+```xml
+<plugin>
+    <groupId>org.jacoco</groupId>
+    <artifactId>jacoco-maven-plugin</artifactId>
+    <version>0.8.10</version>
+    <executions>
+        <execution>
+            <goals>
+                <goal>prepare-agent</goal>
+            </goals>
+        </execution>
+        <execution>
+            <id>report</id>
+            <phase>test</phase>
+            <goals>
+                <goal>report</goal>
+            </goals>
+        </execution>
+    </executions>
+</plugin>
+```
+
+**Run tests with coverage:**
+```bash
+mvn clean test
+mvn jacoco:report
+
+# View report
+open target/site/jacoco/index.html
+```
+
+---
+
+#### F. Test Best Practices
+
+**1. Test Naming Convention:**
+```java
+// Pattern: should[ExpectedBehavior]When[Condition]
+@Test
+void shouldReturnUserWhenEmailExists() { }
+
+@Test
+void shouldThrowExceptionWhenEmailNotFound() { }
+```
+
+**2. Given-When-Then Pattern:**
+```java
+@Test
+void testExample() {
+    // Given (Arrange) - Setup test data
+    User user = new User();
+    
+    // When (Act) - Execute the code under test
+    UserDto result = userService.getUser(user.getId());
+    
+    // Then (Assert) - Verify the result
+    assertNotNull(result);
+    assertEquals(user.getEmail(), result.getEmail());
+}
+```
+
+**3. Test Isolation:**
+```java
+@BeforeEach
+void setUp() {
+    // Setup fresh test data for each test
+}
+
+@AfterEach
+void tearDown() {
+    // Cleanup after each test
+}
+```
+
+**4. Assertion Libraries:**
+```java
+// AssertJ (more readable)
+assertThat(user.getEmail()).isEqualTo("test@test.com");
+assertThat(users).hasSize(3).extracting(User::getEmail)
+    .contains("user1@test.com", "user2@test.com");
+```
+
+---
+
+## 10. Use Cases Summary
+
+### Actors (3):
+- 👤 **Admin (R1):** Quản trị viên hệ thống
+- 👨‍⚕️ **Doctor (R2):** Bác sĩ
+- 🧑‍💼 **Patient (R3):** Bệnh nhân
+
+### Use Cases (17):
+
+**A. User Management (4):**
+- UC1: Đăng nhập (Login) - ALL ACTORS
+- UC2: Đăng ký tài khoản (Register) - PATIENT
+- UC3: Đăng xuất (Logout) - ALL ACTORS
+- UC4: Quản lý User CRUD - ADMIN
+
+**B. Doctor Management (5):**
+- UC5: Quản lý thông tin bác sĩ (Manage Doctor Info) - ADMIN
+- UC6: Quản lý lịch khám (Manage Schedule) - DOCTOR
+- UC7: Xem danh sách đặt lịch (View Bookings) - DOCTOR
+- UC8: Xác nhận khám xong (Confirm Examination) - DOCTOR
+- UC9: Gửi hóa đơn/Đơn thuốc (Send Remedy) - DOCTOR
+
+**C. Clinic & Specialty Management (3):**
+- UC10: Quản lý phòng khám (Manage Clinics) - ADMIN
+- UC11: Quản lý chuyên khoa (Manage Specialties) - ADMIN
+- UC12: Quản lý cẩm nang (Manage Handbooks) - ADMIN
+
+**D. Appointment Booking (5):**
+- UC13: Tìm kiếm bác sĩ (Search Doctors) - PATIENT
+- UC14: Xem lịch khám (View Schedule) - PATIENT
+- UC15: Đặt lịch khám (Book Appointment) - PATIENT
+- UC16: Xác nhận email (Verify Booking) - PATIENT
+- UC17: Xem lịch hẹn (View My Bookings) - PATIENT
+
+### Relationships:
+- **Include:** UC15 include UC16 (Đặt lịch bắt buộc phải xác nhận email)
+- **Include:** UC8 include UC9 (Xác nhận khám xong bao gồm gửi hóa đơn)
+
+---
+
+## 11. Kết luận & Roadmap
+
+### A. Điểm mạnh của hệ thống hiện tại:
+- ✅ **Kiến trúc MVC rõ ràng:** Tách biệt Controller → Service → Model
+- ✅ **Sequelize ORM đầy đủ:** Associations (hasMany, belongsTo, belongsToMany)
+- ✅ **AllCode pattern:** Master data management linh hoạt
+- ✅ **Support N-N-N relationship:** `doctor_clinic_specialty` junction table
+- ✅ **Email verification:** Token-based confirmation flow (S1 → S2)
+
+### B. Critical Improvements (Cần cải thiện ngay):
+
+**1. Security & Authentication:**
+- ⚠️ Chưa có JWT token authentication
+- ⚠️ Password chưa hash đủ mạnh (cần bcryptjs với salt rounds >= 10)
+- ⚠️ Thiếu RBAC middleware (role-based access control)
+- ⚠️ CORS chưa config đúng cho production
+
+**2. Input Validation:**
+- ⚠️ Thiếu Joi/Yup schema validation
+- ⚠️ SQL Injection risk (dù dùng Sequelize vẫn cần sanitize)
+- ⚠️ XSS protection chưa đủ
+
+**3. Business Logic:**
+- ⚠️ Thiếu transaction management (booking + schedule update phải atomic)
+- ⚠️ Race condition khi booking cùng 1 slot
+- ⚠️ Thiếu rate limiting cho API
+
+**4. Performance:**
+- ⚠️ N+1 query problem (cần eager loading)
+- ⚠️ Thiếu Redis cache
+- ⚠️ Không có pagination
+
+### C. Roadmap triển khai:
+
+**Phase 1: Security & Auth (Ưu tiên cao)**
+- [ ] Implement JWT middleware
+- [ ] Hash password with bcryptjs (salt rounds = 10)
+- [ ] Add RBAC (checkRole, checkDoctor, checkAdmin)
+- [ ] Config CORS whitelist
+
+**Phase 2: Performance Optimization**
+- [ ] Add Redis cache (doctor list, specialty)
+- [ ] Implement pagination (limit/offset)
+- [ ] Eager loading (include associations)
+- [ ] Database indexing (email, doctorId, date)
+
+**Phase 3: Observability**
+- [ ] Add Winston logger
+- [ ] Error tracking (Sentry)
+- [ ] API monitoring (response time)
+- [ ] Health check endpoint
+
+**Phase 4: Testing & CI/CD**
+- [ ] Unit tests (Jest)
+- [ ] Integration tests (Supertest)
+- [ ] Docker production build
+- [ ] GitHub Actions CI/CD
+
+---
+
+## 12. Migration Guide: Node.js → Spring Boot
+
+### 12.1 Những thay đổi BẮT BUỘC
+
+#### A. AllCode Pattern → Enum + JPA
+**Vấn đề:** AllCode table lưu master data dạng key-value (ROLE, STATUS, TIME, v.v.)
+
+**Giải pháp 1: Chuyển sang Java Enum (Khuyên dùng)**
+```java
+// entity/enums/BookingStatus.java
+public enum BookingStatus {
+    PENDING("S1", "Chờ xác nhận"),
+    CONFIRMED("S2", "Đã xác nhận"),
+    COMPLETED("S3", "Hoàn thành"),
+    CANCELLED("S4", "Đã hủy");
+    
+    private final String code;
+    private final String description;
+    
+    // Constructor, getters...
+}
+
+// entity/Booking.java
+@Enumerated(EnumType.STRING)
+private BookingStatus status;
+```
+
+**Giải pháp 2: Giữ AllCode table (nếu cần dynamic)**
+```java
+@Entity
+@Table(name = "allcodes")
+public class AllCode {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @Column(unique = true)
+    private String keyMap;
+    
+    private String type;
+    private String valueEn;
+    private String valueVi;
+}
+
+// Trong Booking entity
+@ManyToOne
+@JoinColumn(name = "statusId", referencedColumnName = "keyMap")
+private AllCode status;
+```
+
+**→ Đề xuất:** Dùng Enum cho ROLE, STATUS. Giữ AllCode cho TIME, PRICE, PROVINCE (có thể thay đổi)
+
+---
+
+#### B. Base64 Image Storage → File Storage Service
+
+**Vấn đề hiện tại:** Lưu image dạng BLOB base64 trong MySQL → database lớn, chậm
+
+**Giải pháp Spring Boot:**
+
+**Option 1: AWS S3 (Production-ready)**
+```java
+// config/AwsS3Config.java
+@Configuration
+public class AwsS3Config {
+    @Bean
+    public AmazonS3 s3Client() {
+        return AmazonS3ClientBuilder.standard()
+            .withRegion(Regions.AP_SOUTHEAST_1)
+            .build();
+    }
+}
+
+// service/FileStorageService.java
+@Service
+public class FileStorageService {
+    @Autowired
+    private AmazonS3 s3Client;
+    
+    public String uploadImage(MultipartFile file) {
+        String fileName = UUID.randomUUID() + "_" + file.getOriginalFilename();
+        s3Client.putObject("medical-images", fileName, file.getInputStream(), null);
+        return s3Client.getUrl("medical-images", fileName).toString();
+    }
+}
+
+// entity/Specialty.java
+@Column(length = 500)
+private String imageUrl;  // Lưu URL thay vì BLOB
+```
+
+**Option 2: Local File System (Development)**
+```java
+@Value("${file.upload-dir}")
+private String uploadDir;
+
+public String saveFile(MultipartFile file) {
+    Path path = Paths.get(uploadDir, fileName);
+    Files.copy(file.getInputStream(), path);
+    return "/uploads/" + fileName;
+}
+```
+
+**Dependencies cần thêm:**
+```xml
+<dependency>
+    <groupId>com.amazonaws</groupId>
+    <artifactId>aws-java-sdk-s3</artifactId>
+    <version>1.12.565</version>
+</dependency>
+```
+
+---
+
+#### C. Authentication Flow: JWT Implementation
+
+**Spring Security + JWT Configuration:**
+
+```java
+// security/SecurityConfig.java
+@Configuration
+@EnableWebSecurity
+@EnableMethodSecurity
+public class SecurityConfig {
+    
+    @Autowired
+    private JwtAuthenticationFilter jwtAuthFilter;
+    
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http
+            .csrf(csrf -> csrf.disable())
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .sessionManagement(session -> 
+                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/api/auth/**", "/api/public/**").permitAll()
+                .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                .requestMatchers("/api/doctor/**").hasRole("DOCTOR")
+                .anyRequest().authenticated()
+            )
+            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+        
+        return http.build();
+    }
+    
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder(10);
+    }
+}
+
+// security/JwtTokenProvider.java
+@Component
+public class JwtTokenProvider {
+    
+    @Value("${jwt.secret}")
+    private String jwtSecret;
+    
+    @Value("${jwt.expiration}")
+    private long jwtExpiration;
+    
+    public String generateToken(User user) {
+        return Jwts.builder()
+            .setSubject(user.getEmail())
+            .claim("userId", user.getId())
+            .claim("role", user.getRole().getKeyMap())
+            .setIssuedAt(new Date())
+            .setExpiration(new Date(System.currentTimeMillis() + jwtExpiration))
+            .signWith(SignatureAlgorithm.HS512, jwtSecret)
+            .compact();
+    }
+    
+    public boolean validateToken(String token) {
+        try {
+            Jwts.parser().setSigningKey(jwtSecret).parseClaimsJws(token);
+            return true;
+        } catch (JwtException | IllegalArgumentException e) {
+            return false;
+        }
+    }
+}
+
+// security/JwtAuthenticationFilter.java
+@Component
+public class JwtAuthenticationFilter extends OncePerRequestFilter {
+    
+    @Autowired
+    private JwtTokenProvider tokenProvider;
+    
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, 
+                                    HttpServletResponse response, 
+                                    FilterChain filterChain) {
+        String token = getJwtFromRequest(request);
+        
+        if (token != null && tokenProvider.validateToken(token)) {
+            String email = tokenProvider.getEmailFromToken(token);
+            UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+            
+            UsernamePasswordAuthenticationToken authentication = 
+                new UsernamePasswordAuthenticationToken(
+                    userDetails, null, userDetails.getAuthorities());
+            
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+        }
+        
+        filterChain.doFilter(request, response);
+    }
+    
+    private String getJwtFromRequest(HttpServletRequest request) {
+        String bearerToken = request.getHeader("Authorization");
+        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
+            return bearerToken.substring(7);
+        }
+        return null;
+    }
+}
+```
+
+**application.yml:**
+```yaml
+jwt:
+  secret: ${JWT_SECRET:your-256-bit-secret-key-here}
+  expiration: 604800000  # 7 days
+```
+
+---
+
+#### D. Transaction Management
+
+**Node.js Sequelize:**
+```javascript
+const t = await sequelize.transaction();
+try {
+  await Booking.create({...}, { transaction: t });
+  await Schedule.update({...}, { transaction: t });
+  await t.commit();
+} catch (err) {
+  await t.rollback();
+}
+```
+
+**Spring Boot (đơn giản hơn nhiều):**
+```java
+@Service
+@Transactional  // Tự động rollback nếu có exception
+public class BookingService {
+    
+    public BookingResponseDto createBooking(BookingRequestDto request) {
+        // Tất cả operations trong method này là 1 transaction
+        Booking booking = bookingRepository.save(newBooking);
+        scheduleRepository.updateCurrentNumber(scheduleId);
+        emailService.sendConfirmation(booking);
+        
+        return mapper.toDto(booking);
+        // Auto commit nếu không có exception
+    }
+}
+```
+
+**Lưu ý race condition (nhiều người book cùng slot):**
+```java
+// repository/ScheduleRepository.java
+public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
+    
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT s FROM Schedule s WHERE s.id = :id")
+    Optional<Schedule> findByIdWithLock(@Param("id") Long id);
+}
+
+// service/BookingService.java
+@Transactional
+public BookingResponseDto createBooking(BookingRequestDto request) {
+    Schedule schedule = scheduleRepository.findByIdWithLock(scheduleId)
+        .orElseThrow(() -> new ScheduleNotFoundException());
+    
+    if (schedule.getCurrentNumber() >= schedule.getMaxNumber()) {
+        throw new SlotFullException("Slot đã hết chỗ");
+    }
+    
+    schedule.setCurrentNumber(schedule.getCurrentNumber() + 1);
+    // Auto save vì @Transactional
+}
+```
+
+---
+
+#### E. Input Validation
+
+**Node.js (Joi) → Spring Boot (Bean Validation):**
+
+**Joi validation (hiện tại):**
+```javascript
+const bookingSchema = Joi.object({
+  doctorId: Joi.number().required(),
+  date: Joi.date().min('now').required()
+});
+```
+
+**Bean Validation (Spring Boot):**
+```java
+// dto/request/BookingRequestDto.java
+@Data
+public class BookingRequestDto {
+    
+    @NotNull(message = "Doctor ID không được để trống")
+    private Long doctorId;
+    
+    @NotNull(message = "Ngày khám không được để trống")
+    @Future(message = "Ngày khám phải là ngày trong tương lai")
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private LocalDate date;
+    
+    @NotBlank(message = "Email không được để trống")
+    @Email(message = "Email không hợp lệ")
+    private String email;
+    
+    @Pattern(regexp = "^(T1|T2|T3|T4)$", message = "Time type không hợp lệ")
+    private String timeType;
+    
+    @Size(max = 500, message = "Lý do khám tối đa 500 ký tự")
+    private String reason;
+}
+
+// controller/BookingController.java
+@PostMapping("/book-appointment")
+public ResponseEntity<?> bookAppointment(
+    @Valid @RequestBody BookingRequestDto request  // @Valid tự động validate
+) {
+    // Nếu validation fail → tự động throw MethodArgumentNotValidException
+    BookingResponseDto response = bookingService.createBooking(request);
+    return ResponseEntity.ok(response);
+}
+
+// exception/GlobalExceptionHandler.java
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+    
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<?> handleValidationErrors(MethodArgumentNotValidException ex) {
+        Map<String, String> errors = new HashMap<>();
+        ex.getBindingResult().getFieldErrors().forEach(error -> 
+            errors.put(error.getField(), error.getDefaultMessage())
+        );
+        return ResponseEntity.badRequest().body(ApiResponse.error(errors));
+    }
+}
+```
+
+---
+
+#### F. Email Service với Thymeleaf Template
+
+**Spring Mail Configuration:**
+```java
+// config/EmailConfig.java
+@Configuration
+public class EmailConfig {
+    
+    @Bean
+    public JavaMailSender mailSender() {
+        JavaMailSenderImpl sender = new JavaMailSenderImpl();
+        sender.setHost("smtp.gmail.com");
+        sender.setPort(587);
+        sender.setUsername("${spring.mail.username}");
+        sender.setPassword("${spring.mail.password}");
+        
+        Properties props = sender.getJavaMailProperties();
+        props.put("mail.smtp.auth", "true");
+        props.put("mail.smtp.starttls.enable", "true");
+        
+        return sender;
+    }
+}
+
+// service/EmailService.java
+@Service
+public class EmailService {
+    
+    @Autowired
+    private JavaMailSender mailSender;
+    
+    @Autowired
+    private TemplateEngine templateEngine;
+    
+    public void sendBookingConfirmation(Booking booking, String verifyToken) {
+        Context context = new Context();
+        context.setVariable("patientName", booking.getPatient().getFirstName());
+        context.setVariable("doctorName", booking.getDoctor().getFirstName());
+        context.setVariable("date", booking.getDate());
+        context.setVariable("verifyLink", 
+            "http://localhost:3000/verify-booking?token=" + verifyToken);
+        
+        String htmlContent = templateEngine.process("email/booking-confirmation", context);
+        
+        MimeMessage message = mailSender.createMimeMessage();
+        MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+        
+        helper.setTo(booking.getPatient().getEmail());
+        helper.setSubject("Xác nhận đặt lịch khám bệnh");
+        helper.setText(htmlContent, true);
+        
+        mailSender.send(message);
+    }
+}
+```
+
+**Email template (Thymeleaf):**
+```html
+<!-- resources/templates/email/booking-confirmation.html -->
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+    <h2>Xin chào <span th:text="${patientName}"></span>,</h2>
+    <p>Bạn đã đặt lịch khám với bác sĩ <span th:text="${doctorName}"></span></p>
+    <p>Ngày khám: <span th:text="${#temporals.format(date, 'dd/MM/yyyy')}"></span></p>
+    <a th:href="${verifyLink}">Xác nhận đặt lịch</a>
+</body>
+</html>
+```
+
+---
+
+### 12.2 Performance Optimization với Spring Boot
+
+#### A. Caching với @Cacheable
+
+```java
+// config/CacheConfig.java
+@Configuration
+@EnableCaching
+public class CacheConfig {
+    
+    @Bean
+    public CacheManager cacheManager() {
+        return new ConcurrentMapCacheManager(
+            "specialties", "clinics", "doctors"
+        );
+    }
+}
+
+// service/SpecialtyService.java
+@Service
+public class SpecialtyService {
+    
+    @Cacheable(value = "specialties", key = "#root.methodName")
+    public List<SpecialtyDto> getAllSpecialties() {
+        return specialtyRepository.findAll()
+            .stream()
+            .map(mapper::toDto)
+            .collect(Collectors.toList());
+    }
+    
+    @CacheEvict(value = "specialties", allEntries = true)
+    public SpecialtyDto createSpecialty(SpecialtyRequestDto request) {
+        // Cache sẽ tự động xóa khi tạo mới
+    }
+}
+```
+
+#### B. Pagination built-in
+
+```java
+// controller/DoctorController.java
+@GetMapping
+public ResponseEntity<Page<DoctorDto>> getAllDoctors(
+    @RequestParam(defaultValue = "0") int page,
+    @RequestParam(defaultValue = "10") int size,
+    @RequestParam(defaultValue = "id,asc") String[] sort
+) {
+    Pageable pageable = PageRequest.of(page, size, Sort.by(sort));
+    Page<DoctorDto> doctors = doctorService.getAllDoctors(pageable);
+    return ResponseEntity.ok(doctors);
+}
+
+// service/DoctorService.java
+public Page<DoctorDto> getAllDoctors(Pageable pageable) {
+    return doctorRepository.findAll(pageable)
+        .map(mapper::toDto);
+}
+```
+
+#### C. N+1 Query Prevention
+
+```java
+// repository/DoctorRepository.java
+public interface DoctorRepository extends JpaRepository<User, Long> {
+    
+    @EntityGraph(attributePaths = {"doctorInfo", "specialties", "clinics"})
+    @Query("SELECT u FROM User u WHERE u.role.keyMap = 'R2'")
+    List<User> findAllDoctorsWithDetails();
+    
+    // Hoặc dùng JOIN FETCH
+    @Query("SELECT DISTINCT u FROM User u " +
+           "LEFT JOIN FETCH u.doctorInfo " +
+           "LEFT JOIN FETCH u.specialties " +
+           "WHERE u.role.keyMap = 'R2'")
+    List<User> findAllDoctorsOptimized();
+}
+```
+
+---
+
+### 12.3 Testing với Spring Boot
+
+```java
+// test/controller/BookingControllerTest.java
+@SpringBootTest
+@AutoConfigureMockMvc
+class BookingControllerTest {
+    
+    @Autowired
+    private MockMvc mockMvc;
+    
+    @Autowired
+    private ObjectMapper objectMapper;
+    
+    @Test
+    void shouldCreateBooking() throws Exception {
+        BookingRequestDto request = BookingRequestDto.builder()
+            .doctorId(1L)
+            .date(LocalDate.now().plusDays(1))
+            .timeType("T1")
+            .email("patient@test.com")
+            .build();
+        
+        mockMvc.perform(post("/api/patient-book-appointment")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.errCode").value(0));
+    }
+}
+
+// test/service/BookingServiceTest.java
+@ExtendWith(MockitoExtension.class)
+class BookingServiceTest {
+    
+    @Mock
+    private BookingRepository bookingRepository;
+    
+    @InjectMocks
+    private BookingService bookingService;
+    
+    @Test
+    void shouldCreateBookingSuccessfully() {
+        // Given
+        BookingRequestDto request = new BookingRequestDto();
+        Booking booking = new Booking();
+        when(bookingRepository.save(any())).thenReturn(booking);
+        
+        // When
+        BookingResponseDto result = bookingService.createBooking(request);
+        
+        // Then
+        assertNotNull(result);
+        verify(bookingRepository, times(1)).save(any());
+    }
+}
+```
+
+---
+
+### 12.4 Deployment Configuration
+
+**Docker Multi-stage Build:**
+```dockerfile
+# Dockerfile
+FROM maven:3.9-eclipse-temurin-17 AS build
+WORKDIR /app
+COPY pom.xml .
+COPY src ./src
+RUN mvn clean package -DskipTests
+
+FROM eclipse-temurin:17-jre-alpine
+WORKDIR /app
+COPY --from=build /app/target/*.jar app.jar
+
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "/app.jar"]
+```
+
+**application.yml (multi-profile):**
+```yaml
+# application.yml (common)
+spring:
+  application:
+    name: medical-booking-system
+  
+  jpa:
+    show-sql: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQL8Dialect
+
+---
+# application-dev.yml
+spring:
+  config:
+    activate:
+      on-profile: dev
+  
+  datasource:
+    url: jdbc:mysql://localhost:3306/medical_booking
+    username: root
+    password: root
+  
+  jpa:
+    show-sql: true
+
+---
+# application-prod.yml
+spring:
+  config:
+    activate:
+      on-profile: prod
+  
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+```
+
+---
+
+### 12.5 Checklist Migration
+
+**Phase 1: Setup Project**
+- [ ] Tạo Spring Boot project (Spring Initializr)
+- [ ] Config pom.xml/build.gradle
+- [ ] Setup application.yml
+- [ ] Connect MySQL database
+
+**Phase 2: Entity Migration**
+- [ ] Convert Sequelize models → JPA Entities
+- [ ] Setup relationships (@OneToMany, @ManyToOne, @ManyToMany)
+- [ ] Migrate AllCode → Enum hoặc Entity
+- [ ] Create Repositories (extends JpaRepository)
+
+**Phase 3: Security Implementation**
+- [ ] Config Spring Security
+- [ ] Implement JWT (Provider + Filter)
+- [ ] Create UserDetailsService
+- [ ] Setup RBAC với @PreAuthorize
+
+**Phase 4: Business Logic**
+- [ ] Migrate Services (giữ nguyên logic)
+- [ ] Create DTOs (Request/Response)
+- [ ] Implement Mappers (Entity ↔ DTO)
+- [ ] Add @Transactional cho critical operations
+
+**Phase 5: API Layer**
+- [ ] Migrate Controllers
+- [ ] Add Bean Validation (@Valid)
+- [ ] Global Exception Handler
+- [ ] API Response wrapper
+
+**Phase 6: Supporting Features**
+- [ ] Email Service (Spring Mail + Thymeleaf)
+- [ ] File Upload (S3 hoặc local)
+- [ ] Caching (@Cacheable)
+- [ ] Pagination (Pageable)
+
+**Phase 7: Testing**
+- [ ] Unit tests (Mockito)
+- [ ] Integration tests (MockMvc)
+- [ ] Load testing (JMeter)
+
+**Phase 8: Deployment**
+- [ ] Docker build
+- [ ] Environment config
+- [ ] Health check endpoint
+- [ ] CI/CD setup
+
+---
+
+**File analysis completed by:** GitHub Copilot (Claude Sonnet 4.5)  
+**Date:** February 24, 2026  
+**Migration Target:** Java Spring Boot 3.2+ with Java 17 LTS
